@@ -1,0 +1,142 @@
+Simulation workflow
+
+Initialize Abstract System
+├── Define particle cluster (positions, velocities)
+├── Load energy landscape parameters
+└── Set temperature and sampling method
+
+Main Loop:
+├── Deterministic Evolution
+│   ├── Calculate forces from landscape gradient
+│   ├── Update particle positions/velocities
+│   └── Check for barrier proximity
+├── Stochastic Transition Attempts
+│   ├── Identify when near barriers
+│   ├── Attempt Metropolis crossing
+│   └── Accept/reject based on energy difference
+└── Analysis and Logging
+    ├── Track transition events
+    ├── Calculate instantaneous rates
+    └── Compare with theoretical predictions
+
+
+Package workflow
+
+abstract_barrier_simulator/
+├── CMakeLists.txt
+├── README.md
+├── 
+├── include/
+│   ├── core/
+│   │   ├── abstract_system.hpp      # Particle cluster + simple interactions
+│   │   ├── energy_landscape.hpp     # Mathematical barrier/well definitions
+│   │   ├── particle.hpp             # Abstract particle with position, momentum
+│   │   └── cluster_dynamics.hpp     # Collective motion of particle cluster
+│   │
+│   ├── landscape/
+│   │   ├── potential_surface.hpp    # 2D/3D mathematical surfaces
+│   │   ├── barrier_geometry.hpp     # Barrier height, width, shape parameters
+│   │   ├── multi_well.hpp           # Multiple minima configurations
+│   │   └── landscape_factory.hpp    # Generate different test landscapes
+│   │
+│   ├── dynamics/
+│   │   ├── deterministic_evolution.hpp  # N-body dynamics in landscape
+│   │   ├── stochastic_transitions.hpp   # MC barrier crossing attempts
+│   │   ├── hybrid_integrator.hpp        # Combine deterministic + stochastic
+│   │   └── temperature_coupling.hpp     # Thermal bath effects
+│   │
+│   ├── sampling/
+│   │   ├── enhanced_sampler.hpp     # Base class for sampling methods
+│   │   ├── umbrella_abstract.hpp    # Umbrella sampling on abstract landscape
+│   │   ├── metadynamics_abstract.hpp    # Abstract metadynamics
+│   │   └── transition_counting.hpp  # Count barrier crossing events
+│   │
+│   ├── theory/
+│   │   ├── rate_theory.hpp          # Theoretical rate predictions
+│   │   ├── arrhenius_model.hpp      # Temperature-dependent rates
+│   │   ├── kramers_theory.hpp       # Kramers rate theory
+│   │   └── transition_state.hpp     # TST calculations
+│   │
+│   ├── cuda/
+│   │   ├── cuda_particles.cuh       # GPU particle operations
+│   │   ├── landscape_kernels.cuh    # Energy landscape evaluation
+│   │   ├── mc_kernels.cuh           # Monte Carlo kernels
+│   │   └── reduction_kernels.cuh    # Statistical reductions
+│   │
+│   └── analysis/
+│       ├── rate_calculator.hpp      # Extract transition rates
+│       ├── residence_time.hpp       # Well residence statistics
+│       ├── pathway_analysis.hpp     # Transition pathway characterization
+│       └── theory_comparison.hpp    # Compare simulation vs theory
+│
+├── src/
+│   ├── core/
+│   │   ├── abstract_system.cpp
+│   │   ├── energy_landscape.cpp
+│   │   ├── particle.cpp
+│   │   └── cluster_dynamics.cpp
+│   │
+│   ├── landscape/
+│   │   ├── potential_surface.cpp
+│   │   ├── barrier_geometry.cpp
+│   │   ├── multi_well.cpp
+│   │   └── landscape_factory.cpp
+│   │
+│   ├── dynamics/
+│   │   ├── deterministic_evolution.cpp
+│   │   ├── stochastic_transitions.cpp
+│   │   ├── hybrid_integrator.cpp
+│   │   └── temperature_coupling.cpp
+│   │
+│   ├── sampling/
+│   │   ├── enhanced_sampler.cpp
+│   │   ├── umbrella_abstract.cpp
+│   │   ├── metadynamics_abstract.cpp
+│   │   └── transition_counting.cpp
+│   │
+│   ├── theory/
+│   │   ├── rate_theory.cpp
+│   │   ├── arrhenius_model.cpp
+│   │   ├── kramers_theory.cpp
+│   │   └── transition_state.cpp
+│   │
+│   ├── cuda/
+│   │   ├── cuda_particles.cu
+│   │   ├── landscape_kernels.cu
+│   │   ├── mc_kernels.cu
+│   │   └── reduction_kernels.cu
+│   │
+│   ├── analysis/
+│   │   ├── rate_calculator.cpp
+│   │   ├── residence_time.cpp
+│   │   ├── pathway_analysis.cpp
+│   │   └── theory_comparison.cpp
+│   │
+│   └── main.cpp
+│
+├── config/                          # Configuration files
+│   ├── landscapes/                  # Different test energy surfaces
+│   │   ├── double_well.json
+│   │   ├── triple_well.json
+│   │   ├── rugged_landscape.json
+│   │   └── periodic_barriers.json
+│   ├── sampling/                    # Sampling method parameters
+│   └── tests/                  # Validation test cases
+│
+├── tests/                      # Theory validation tests
+│   ├── kramers_validation/
+│   ├── arrhenius_validation/
+│   ├── enhanced_sampling_comparison/
+│   └── scaling_tests/
+│
+├── examples/
+│   ├── simple_double_well/          # Basic barrier crossing
+│   ├── multi_dimensional/           # Higher-dimensional landscapes
+│   ├── temperature_dependence/      # Rate-temperature relationships
+│   └── enhanced_vs_standard/        # Compare sampling methods
+│
+└── scripts/
+    ├── generate_landscapes.py       # Create test energy surfaces
+    ├── theory_predictions.py        # Calculate theoretical rates
+    ├── validation_plots.py          # Compare theory vs simulation
+    └── parameter_sweeps.py          # Systematic parameter studies
