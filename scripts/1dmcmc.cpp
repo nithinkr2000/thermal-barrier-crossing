@@ -62,7 +62,6 @@ float gaussian_proposal(std::vector<float> params)
     return normal_dist(e1);
 }
 
-// Fix 1: Specify return type explicitly
 std::tuple<std::vector<float>, std::vector<float>> propagate_mcmc(std::vector<float>& s, float& s0, float step_size, std::vector<std::vector<float>> V_params, float beta, int n_steps)
 {
     std::random_device r;
