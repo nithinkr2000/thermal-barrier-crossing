@@ -1,0 +1,9 @@
+amplitudes=100.0,38.0,100.0
+means=-0.7,0.0,0.7
+variances=0.0004,0.04,0.01
+s0=-0.37
+step_size=0.002
+beta=0.4
+n_steps=1000000
+pf=gaussian
+out_suffix=g
