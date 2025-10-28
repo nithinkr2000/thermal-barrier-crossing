@@ -1,0 +1,20 @@
+#ifndef PARAM_SETS_HPP
+#define PARAM_SETS_HPP
+
+#include <vector>
+#include <string>
+#include <unordered_map>
+
+using StateVec = std::vector<float>; 			 // Rename type to improve readability 
+using ComponentParams = std::vector<std::vector<float>>; // Rename type to improve readability
+
+struct PotentialConfig
+{
+	// Map potential function names to parameters
+	// This way, after identifying and extracting parameters based on the keyword, 
+	// they can be stored to later reconstruct the full potential
+	// Decided to use a dictionary for this
+	std::unordered_map <std::string, ComponentParams> component_sets;
+};
+
+#endif
