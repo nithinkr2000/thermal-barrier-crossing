@@ -1,4 +1,5 @@
 #include "../../include/landscape/potentials.hpp"
+#include "../../include/core/helper_funcs.hpp"
 #include <cmath>
 #include <algorithm>
 #include <omp.h>
@@ -109,7 +110,7 @@ StateVec ConstructFullPotential(const StateVec& s, const PotentialConfig& param_
 		{	
 			StateVec pots = Gaussian(s, params);
 			for(auto& si : s)
-				if((s[idx] <= potential_lims[1]) && s[idx] >= (potential_lims[0]))
+				if(in_range(s[idx], potential_lims[0], potential_lims[1]))
 					potential[idx] += pots[idx];
 		}	
 		
@@ -117,7 +118,7 @@ StateVec ConstructFullPotential(const StateVec& s, const PotentialConfig& param_
 		{
 			StateVec pots = Polynomial(s, params);
 			for(auto& si : s)
-				if((s[idx] <= potential_lims[1]) && s[idx] >= (potential_lims[0]))
+				if(in_range(s[idx], potential_lims[0], potential_lims[1]))
 					potential[idx] += pots[idx];
 		}
 
@@ -125,7 +126,7 @@ StateVec ConstructFullPotential(const StateVec& s, const PotentialConfig& param_
 		{
 			StateVec pots = Harmonic(s, params);
 			for(auto& si : s)
-				if((s[idx] <= potential_lims[1]) && s[idx] >= (potential_lims[0]))
+				if(in_range(s[idx], potential_lims[0], potential_lims[1]))
 					potential[idx] += pots[idx];
 		}
 
