@@ -15,6 +15,7 @@ struct PotentialConfig
 	// they can be stored to later reconstruct the full potential
 	// Decided to use a dictionary for this
 	std::unordered_map <std::string, ComponentParams> component_sets;
+	ComponentParams lims;
 };
 
 #endif
