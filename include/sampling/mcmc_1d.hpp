@@ -6,16 +6,8 @@
 #include <omp.h>
 #include <random>
 
-StateVec BoltzmannInversion(const StateVec& s, float& beta);
-float GaussianProposal(StateVec& params)
-{
-    std::random_device r;
-    std::mt19937 e1(r());
-    
-    std::normal_distribution<float> normal_dist(params[0], params[1]);
-                       
-    return normal_dist(e1);
-}
-
+StateVec BoltzmannInversion(const StateVec& s, double& beta);
+double GaussianProposal(StateVec& params);
+double UniformProposal(StateVec& params);
 
 #endif

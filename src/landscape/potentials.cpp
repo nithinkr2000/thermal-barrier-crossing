@@ -12,11 +12,11 @@ StateVec GaussianDoubleWell(const StateVec& s, const ComponentParams& params)
 {
 	StateVec gdw(s.size(), 0.0f);
 
-	#pragma omp parallel for collapse(2)
-	for(size_t i = 0; i < params.size(); ++i)   // Iterate over Gaussian components
-		for(size_t j = 0; j < s.size(); ++j) // Iterate over the positions (1 or 2)
+	#pragma omp parallel for
+	for(size_t j = 0; j < s.size(); ++j) 			// Iterate over the positions (1 or 2)
+		for(size_t i = 0; i < params.size(); ++i)   // Iterate over Gaussian components
 		{
-			float contrib = params[i][0] * std::exp(-std::pow(s[j] - params[i][1], 2) / (2 * params[i][2]));
+			double contrib = params[i][0] * std::exp(-std::pow(s[j] - params[i][1], 2) / (2 * params[i][2]*  params[i][2]));
 			gdw[j] += contrib;
 		}
 
@@ -26,13 +26,14 @@ StateVec GaussianDoubleWell(const StateVec& s, const ComponentParams& params)
 
 StateVec HarmonicDoubleWell(const StateVec& s, const ComponentParams& params)
 {
-	StateVec hdw(s.size(), std::numeric_limits<float>::infinity());
+	StateVec hdw(s.size(), std::numeric_limits<double>::infinity());
 
-	#pragma omp parallel for collapse(2)
+	
+	#pragma omp parallel for
 	for(size_t i = 0; i < params.size(); ++i)
 		for(size_t j = 0; j < s.size(); ++j)
 		{
-			float contrib = params[i][0] * std::pow(s[i] - params[i][1], 2) + params[i][2];
+			double contrib = params[i][0] * std::pow(s[i] - params[i][1], 2) + params[i][2];
 			
 			hdw[j] = std::min(contrib, hdw[j]);
 		}
@@ -59,8 +60,8 @@ StateVec Gaussian(const StateVec& s, const ComponentParams& params)
 {
 	StateVec gaussian(s.size(), 0.0f);
 	
-	std::transform(s.begin(), s.end(), gaussian.begin(), [&params](float x){
-		return params[0][0] * std::exp( -std::pow(x - params[0][1], 2 ) / (2 * params[0][2]) ); 
+	std::transform(s.begin(), s.end(), gaussian.begin(), [&params](double x){
+		return params[0][0] * std::exp( -std::pow(x - params[0][1], 2 ) / (2 * params[0][2] * params[0][2]) ); 
 	});
 
 	return gaussian;
@@ -71,7 +72,7 @@ StateVec Harmonic(const StateVec& s, const ComponentParams& params)
 {
 	StateVec harmonic(s.size(), 0.0f);
 	
-	std::transform(s.begin(), s.end(), harmonic.begin(), [&params](float x){
+	std::transform(s.begin(), s.end(), harmonic.begin(), [&params](double x){
 		return params[0][0] * std::pow(x - params[0][1], 2) + params[0][2] ; 
 	});
 
