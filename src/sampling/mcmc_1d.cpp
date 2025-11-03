@@ -28,7 +28,7 @@ StateVec BoltzmannInversion(const StateVec& E, double& beta)
 }
 
 
-double GaussianProposal(StateVec& params)
+double GaussianProposal(const StateVec& params)
 {
     /*
     * @brief    Generate Gaussian proposal for the next step.
@@ -49,7 +49,7 @@ double GaussianProposal(StateVec& params)
     return normal_dist(gen);
 }
 
-double UniformProposal(StateVec& params)
+double UniformProposal(const StateVec& params)
 {
     /*
     * @brief    Generate uniform proposal for the next step.
