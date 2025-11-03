@@ -5,8 +5,8 @@
 #include <string>
 #include <unordered_map>
 
-using StateVec = std::vector<float>; 			 // Rename type to improve readability 
-using ComponentParams = std::vector<std::vector<float>>; // Rename type to improve readability
+using StateVec = std::vector<double>; 			 // Rename type to improve readability 
+using ComponentParams = std::vector<std::vector<double>>; // Rename type to improve readability
 
 struct PotentialConfig
 {
