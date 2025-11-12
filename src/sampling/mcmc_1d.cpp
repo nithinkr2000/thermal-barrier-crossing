@@ -6,7 +6,7 @@
 
 StateVec BoltzmannInversion(const StateVec& E, double& beta)
 {
-    /*
+    /**
     * @brief    Perform boltzmann inversion to determine the Boltzmann weights of
     *           the passed states.
     * 
@@ -28,48 +28,51 @@ StateVec BoltzmannInversion(const StateVec& E, double& beta)
 }
 
 
-double GaussianProposal(const StateVec& params)
+double GaussianProposal(const StateVec& params,
+                        std::default_random_engine& gen)
 {
-    /*
-    * @brief    Generate Gaussian proposal for the next step.
+    /**
     *
-    * @param    params  -   Contains the current position and the step size,
-    *                           which are equivalent to the mean and the standard
-    *                           deviation of the proposal distribution.
+    * @brief Function to propose the next move based on a Gaussian
+    *        distribution about the current position.
+    *       
+    * @param  params - Mean and standard deviation of the Gaussian       
+    *                  distribution. These are essentially the 
+    *                  current position and step size.
     * 
-    * @return   float   -   The next proposed step.
+    * @param  gen    - Generator for the random number generation.
+    * 
+    * @return A position drawn from the Gaussian distribution 
+    *         defined using the arguments passed.
     * 
     */
-
-    std::random_device r;
-    std::mt19937 gen(r());
     
-    std::normal_distribution<double> normal_dist(params[0], params[1]);
-                       
+    std::normal_distribution<double> normal_dist(params[0], params[1]);                   
     return normal_dist(gen);
 }
 
-double UniformProposal(const StateVec& params)
+double UniformProposal(const StateVec& params, 
+                       std::default_random_engine& gen)
 {
-    /*
-    * @brief    Generate uniform proposal for the next step.
+    /**
     *
-    * @param    params  -   Contains the current position and the step size,
-    *                       which generates points from a window of size 
-    *                       2 x step size centered at the current position. 
-    * 
-    * @return   float   -   The next proposed step.
-    * 
+    * @brief  Function to propose the next move based on a uniform 
+    *         distribution about the current position
+    *
+    * @param  params - Center and half-width of the uniform 
+    *                  distribution. These are the current
+    *                  position and the step size respectively.
+    *   
+    * @param  gen    - Generator for random number generation
+    * @return A position drawn from the uniform distribution
+    *         defined using the arguments passed.
+    *
     */
-
-    std::random_device r;
-    std::mt19937 gen(r());
-
-    double left_lim (params[1] - params[0]);
-    double right_lim (params[1] + params[0]);
-
-    std::uniform_real_distribution<double> uni_dist(left_lim, right_lim);
-                       
+    
+    const double from_val = params[0] - params[1];
+    const double to_val = params[0] + params[1];
+    
+    std::uniform_real_distribution<double> uni_dist(from_val, to_val);
+    
     return uni_dist(gen);
 }
-

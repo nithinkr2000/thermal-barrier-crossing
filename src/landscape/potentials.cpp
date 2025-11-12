@@ -1,11 +1,12 @@
 #include "../../include/landscape/potentials.hpp"
 #include "../../include/core/helper_funcs.hpp"
+#include "../../include/core/param_sets.hpp"
 #include <cmath>
 #include <algorithm>
 #include <omp.h>
 #include <stdexcept>
 #include <iostream>
-
+#include <execution>
 // Predefined double well potentials
 
 StateVec GaussianDoubleWell(const StateVec& s, const ComponentParams& params)
@@ -42,13 +43,14 @@ StateVec HarmonicDoubleWell(const StateVec& s, const ComponentParams& params)
 }
 
 
-StateVec QuarticDoubleWell(const StateVec& s, const ComponentParams& params)
+StateVec QuarticDoubleWell(const StateVec& s, const StateVec& params)
 {
 	StateVec qdw(s.size(), 0.0f);
 
 	#pragma omp parallel for
 	for(size_t i = 0; i < s.size(); ++i)
-		qdw[i] =( (s[i] - params[0][0]) * (s[i] - params[0][1]) * (s[i] - params[0][2]) * (s[i] - params[0][3]) * params[0][4]) + params[0][5];
+	for (size_t j = 0; j < params.size(); ++j)
+		qdw[i] =( (s[i] - params[0]) * (s[i] - params[1]) * (s[i] - params[2]) * (s[i] - params[3]) * params[4]) + params[5];
 
 	return qdw;
 }
@@ -56,86 +58,134 @@ StateVec QuarticDoubleWell(const StateVec& s, const ComponentParams& params)
 
 // Components for constructing double well potential
 
-StateVec Gaussian(const StateVec& s, const ComponentParams& params)
+StateVec Gaussian(const StateVec& s, const StateVec& params)
 {
 	StateVec gaussian(s.size(), 0.0f);
 	
 	std::transform(s.begin(), s.end(), gaussian.begin(), [&params](double x){
-		return params[0][0] * std::exp( -std::pow(x - params[0][1], 2 ) / (2 * params[0][2] * params[0][2]) ); 
+		return params[0] * std::exp( -std::pow(x - params[1], 2 ) / (2 * params[2] * params[2]) ); 
 	});
 
 	return gaussian;
 }
 
 
-StateVec Harmonic(const StateVec& s, const ComponentParams& params)
+StateVec Harmonic(const StateVec& s, const StateVec& params)
 {
 	StateVec harmonic(s.size(), 0.0f);
 	
 	std::transform(s.begin(), s.end(), harmonic.begin(), [&params](double x){
-		return params[0][0] * std::pow(x - params[0][1], 2) + params[0][2] ; 
+		return params[0] * std::pow(x - params[1], 2) + params[2] ; 
 	});
 
 	return harmonic;
 }
 
 
-StateVec Polynomial(const StateVec& s, const ComponentParams& params)
+StateVec Polynomial(const StateVec& s, const StateVec& params)
 {
 	StateVec polynomial(s.size(), 0.0f);
 
+	#pragma omp parallel for
 	for(size_t i = 0; i < s.size(); ++i)
-		for(size_t j = 0; j < params[0].size(); ++j)
-			polynomial[i] += params[0][j] * std::pow(s[i], j);
+		for(size_t j = 0; j < params.size(); ++j)
+			polynomial[i] += params[j] * std::pow(s[i], j);
 		
 	return polynomial;
 }
 
 
-// Function to construct full potential energy surface from components
-StateVec ConstructFullPotential(const StateVec& s, const PotentialConfig& param_config)
+StateVec Exponential(const StateVec& s, const StateVec& params)
 {
-	StateVec potential(s.size(), 0.0f);
+	/**
+	 * @brief 	Function to calculate exponential contributions to the 
+	 * 			energy landscape. Takes the for 
+	 * 			f(x) = A exp(-c (x - x0) )
+	 * 			where A is scale factor, c the coefficient and x0 the
+	 * 			value where the exponential is centered (= A).			
+	 * 
+	 * @param 	params	- Contains A, x, x0 in that order for one exactly
+	 * 					  exponential functions.
+	 * 
+	 * @return	f(s)	- The exponential calculated for s.
+	 * 
+	 */
 
-	size_t idx = 0;
-	for(const auto& potential_params : param_config.component_sets)
-	{	
-		std::string potential_name = potential_params.first;
-		ComponentParams params = potential_params.second;
+	StateVec exponential(s.size(), 0.0);
+	std::transform(std::execution::par, s.begin(), s.end(), exponential.begin(), [&params](double x){
+		return params[0] * std::exp( -params[1] * (x - params[2]));});
+	
+	return exponential;
+}	
 
-		StateVec potential_lims = param_config.lims[idx];
+enum class ProposalTypes
+{
+    GAUSSIAN,
+    UNIFORM,
+};
 
-		// If the limits are two numbers, this potential function
-		// is only added in that range of positions
-		if(potential_name.compare("gaussian"))
-		{	
-			StateVec pots = Gaussian(s, params);
-			for(auto& si : s)
-				if(in_range(s[idx], potential_lims[0], potential_lims[1]))
-					potential[idx] += pots[idx];
-		}	
-		
-		else if(potential_name.compare("polynomial"))
+enum class PotentialLandscape
+{
+    GAUSSIAN_DW,
+    QUARTIC_DW,
+    HARMONIC_DW,
+    CUSTOM,
+};
+
+class FullPotential
+{
+	public:
+		FullPotential (const std::unordered_map<std::string, std::string>& all_params)
 		{
-			StateVec pots = Polynomial(s, params);
-			for(auto& si : s)
-				if(in_range(s[idx], potential_lims[0], potential_lims[1]))
-					potential[idx] += pots[idx];
-		}
-
-		else if(potential_name.compare("harmonic"))
-		{
-			StateVec pots = Harmonic(s, params);
-			for(auto& si : s)
-				if(in_range(s[idx], potential_lims[0], potential_lims[1]))
-					potential[idx] += pots[idx];
-		}
-
-		
-		else
-			throw std::invalid_argument("Unknown choice of component function!");
 			
-		++idx;
-	}
-	return potential;
-}
+		}
+		
+		// Function to construct full potential energy surface from components
+		StateVec ConstructFullPotential(const StateVec& s, const PotentialConfig<StateVec>& param_config)
+		{
+			StateVec potential(s.size(), 0.0f);
+
+			size_t idx = 0;
+			for(const auto& potential_params : param_config.component_sets)
+			{	
+				std::string potential_name = potential_params.first;
+				StateVec params = potential_params.second;
+
+				StateVec potential_lims = param_config.lims[idx];
+
+				// If the limits are two numbers, this potential function
+				// is only added in that range of positions
+				if(!potential_name.compare("gaussian"))
+				{	
+					StateVec pots = Gaussian(s, params);
+					for(auto& si : s)
+						if(InRange(si, potential_lims[0], potential_lims[1]))
+							potential[idx] += pots[idx];
+				}	
+				
+				else if(!potential_name.compare("polynomial"))
+				{
+					StateVec pots = Polynomial(s, params);
+					for(auto& si : s)
+						if(InRange(si, potential_lims[0], potential_lims[1]))
+							potential[idx] += pots[idx];
+				}
+
+				else if(!potential_name.compare("harmonic"))
+				{
+					StateVec pots = Harmonic(s, params);
+					for(auto& si : s)
+						if(InRange(si, potential_lims[0], potential_lims[1]))
+							potential[idx] += pots[idx];
+				}
+				
+				else
+					throw std::invalid_argument("Unknown choice of component function!");
+					
+				++idx;
+			}
+			return potential;
+			}
+};
+
+
