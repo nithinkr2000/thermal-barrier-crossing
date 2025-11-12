@@ -1,0 +1,6 @@
+roots_scale_offset=2.82,2.21,8.26,11.2,0.02,6.21
+s0=4.1
+step_size=0.2
+beta=0.47
+n_steps=10000000
+pf=quartic

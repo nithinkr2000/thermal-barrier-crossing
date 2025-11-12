@@ -1,0 +1,8 @@
+scale=2e-4,2.67e-4
+vertices=-1700,2000
+offsets=300,0.0
+s0=500
+step_size=10
+beta=0.004
+n_steps=10000000
+pf=harmonic
