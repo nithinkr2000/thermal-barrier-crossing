@@ -4,8 +4,9 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-
-using StateVec = std::vector<double>; 			 // Rename type to improve readability 
+// #include <NamedType/named_type.hpp>
+using StateVec = std::vector<double>;
+// using EnergyVec = NamedType< std::vector<double>, struct EnergyStates>; 	 // Rename type to improve readability 
 using ComponentParams = std::vector<std::vector<double>>; // Rename type to improve readability
 
 template <typename T> 

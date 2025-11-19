@@ -1,9 +1,7 @@
-#include <omp.h>
-#include <iostream>
-#include <cmath>
-#include <algorithm>
-#include <functional>
+#pragma once
+
 #include <vector>
+#include <utility>
 #include <random>
 #include <numbers>
 #include <fstream>
@@ -11,245 +9,116 @@
 #include <stdexcept>
 #include <tuple>
 #include <unordered_map>
-
-
-std::vector<float> multi_gaussian_potential(const std::vector<float>& s, 
-                                            const std::vector<std::vector<float>>& params)
-{
-    /**
-    *
-    * @brief Compute the potential energy for a set of points `s`
-    *        assuming the potential energy landscape is a sum of 
-    *        Gaussian functions.
-    * 
-    * @param  s      - Sets of 1D points.
-    * @param  params - Amplitudes, means and variances of the
-    *                  Gaussian peaks.
-    *
-    * @return mgp    - Sum of Gaussian functions for the given 
-    *                  points.
-    *
-    */
-    
-    std::vector<float> mgp(s.size(), 0.0f);
-    
-    #pragma omp parallel for collapse(2)
-    for(size_t i = 0; i < params.size(); ++i) 
-        for(size_t j = 0; j < s.size(); ++j) 
-        {
-            float contribution = params[i][0] * 
-                                 std::exp(-std::pow(s[j] - params[i][1], 2) /
-                                 (2 * params[i][2]));
-                                 
-            mgp[j] += contribution;
-        }
-    
-    return mgp;
-}
-
-
-std::vector<float> multi_harmonic_potential(const std::vector<float>& s, 
-                                            const std::vector<std::vector<float>>& params)
-{
-    /**
-    *
-    * @brief Compute the potential energy for a set of points `s`
-    *        assuming the potential energy landscape is a sum of 
-    *        Harmonic functions.
-    * 
-    * @param  s      - Sets of 1D points.
-    * @param  params - Amplitudes, vertices and offsets of the 
-    * 		       Harmonic wells.
-    *
-    * @return mhp    - Sum of Harmonic functions for the given 
-    *                  points.
-    *
-    */
-    
-    std::vector<float> mhp(s.size(), 0.0f);
-
-    #pragma omp parallel for collapse(2)
-    for(size_t i = 0; i < params.size(); ++i)
-	    for(size_t j = 0; j < s.size(); ++j)
-	    {
-	        float contribution = params[i][0] * 
-	                             std::pow(s[j]-params[i][1], 2) +
-				     params[i][2];
-	                             
-	        mhp[j] = std::min(contribution, mhp[j]);
-	    }
-
-    return mhp;
-}
-
-
-std::vector<float> quartic_potential(const std::vector<float>& s, 
-                                     const std::vector<std::vector<float>>& params)
-{
-    /**
-    *
-    * @brief Compute the potential energy for a set of points `s`
-    *        assuming the potential energy landscape is a sum of 
-    *        Harmonic functions.
-    * 
-    * @param  s      - Sets of 1D points.
-    * @param  params - Roots of the quartic potential, scale and 
-    *                  offset. 
-    *
-    * @return qp     - Quartic function constructde from params.
-    *
-    */
-    
-    std::vector<float> qp(s.size(), 0.0f);
-
-    #pragma omp parallel for
-    for(size_t i = 0; i < s.size(); ++i)
-	    qp[i] = ((s[i] - params[0][0]) *
-	            (s[i] - params[1][0]) * 
-	            (s[i] - params[3][0]) *
-	            (s[i] - params[3][0]) *
-	            params[4][0]) +
-	            params[5][0];
-
-    return qp;
-}
+#include "potentials.cpp"
+#include "proposal_inversion.cpp"
+#include <NamedType/named_type.hpp>
 
 
 
-std::vector<float> boltzmann_weight(const std::vector<float>& E, float beta)
-{
-    /**
-    *
-    * @brief Calculates Boltzmann weight based on potential energy 
-    *        passed. Does not scale with partition function. 
-    *
-    * @param  E    - Set of energy values.
-    * @param  beta - 1/kT where k is the Boltzmann constant T is the
-    *               temperature.
-    *
-    * @return bw   - Boltzmann weights for the energies in E.
-    *
-    */
-    
-    std::vector<float> bw(E.size());
-    
-    // Parallelize the exponential calculation
-    #pragma omp parallel for
-    for(size_t i = 0; i < E.size(); ++i) {
-        bw[i] = std::exp(-beta * E[i]);
-    }
-    
-    return bw;
-}
-
-
-float gaussian_proposal(std::vector<float> params)
-{
-    /**
-    *
-    * @brief Function to propose the next move based on a Gaussian
-    *        distribution about the current position.
-    *       
-    * @param  params - Mean and standard deviation of the Gaussian       
-    *                 distribution. These are essentially the 
-    *                 current position and step size.
-    *
-    * @return A position drawn from the Gaussian distribution 
-    *         defined using the arguments passed.
-    * 
-    */
-    std::random_device r;
-    std::mt19937 e1(r());
-    
-    std::normal_distribution<float> normal_dist(params[0], params[1]);
-                       
-    return normal_dist(e1);
-}
-
-
-std::tuple<std::vector<float>, std::vector<float>> propagate_mcmc(float& s0, 
-                                                                  float step_size, 
-                                                                  std::vector<std::vector<float>> V_params, 
-                                                                  float beta, 
-                                                                  int n_steps, 
-                                                                  std::string pf)
+std::tuple<std::vector<double>, std::vector<double>> propagate_mcmc(double& s0,
+                                        double stepSize, 
+                                        double beta, 
+                                        int replicaId,
+                                        std::vector<std::vector<double>> vParams, 
+                                        long nSteps, 
+                                        std::default_random_engine& gen,
+                                        std::function< std::vector<double> ( const std::vector<double>&, 
+                                                         const std::vector<std::vector<double>>& ) > potential,
+                                        std::function< double ( std::vector<double>&, 
+                                                            std::default_random_engine&) > proposal,
+                                        std::vector<double> walls)
 {
     /**
     *
     * @brief Generates a realization of the Markov chain using the Metropolis
     *        Monte Carlo algorithm. Returns results as a tuple of two vectors.
     *
-    * @param  s0        - Starting point.
+    * @param  s0        - Starting polong.
     * @param  step_size - The size of the steps to be taken i.e. standard
     *                     deviation of the Gaussian distribution used to 
     *                     propose steps.
-    * @param  V_params  - Parameters for the potential energy landscape.
+    * @param  vParams   - Parameters for the potential energy landscape.
     * @param  beta      - 1/kT for calculating Boltzmann weights.
-    * @param  n_steps   - The number of Monte Carlo steps to be taken.
-    * @param  pf        - Choice of potential function for the simulation.
-    *                      Must be 'gaussian' or 'harmonic'.
+    * @param  replicaId - The replica index of the potential parameters.
+    * @param  nSteps    - The number of Monte Carlo steps to be taken.
+    * @param  potential - Choice of potential function for the simulation.
+    *                     Must be `gaussian`, `harmonic` or `quartic`.
+    * @param  proposal  - Choice of proposal function for the simulation.
+    *                     Must be `gaussian` or `uniform`.
+    * @param  walls     - The walls from where the particle is reflected.
+    *                     The limits of the parameter with respect to which
+    *                     the free energy is projected.
     *
+    * 
     * @result positions - Set of positions generated by the Monte Carlo 
     *                     steps.
     * @result energies  - Set of energies for the positions visited.
     * 
     */
-    
-    // Initialize random number generator
-    std::random_device r;
-    std::default_random_engine e1(r());
-    
-    // Initialize return vectors.
-    std::vector<float> positions = {s0};
-    std::vector<float> energies;
 
-    
-    for(int i = 0; i < n_steps; ++i)
-    {        
-        // Propose the next step 
-        float s1 = gaussian_proposal({s0, step_size});
-
-        std::vector<float> Es;
-        
-        // Calculate the energy based on the passed form of 
-        // the potential energy surface
-	    if(!pf.compare("gaussian"))
-       	    Es = multi_gaussian_potential({s0, s1}, V_params);
-        	
-	    else if(!pf.compare("harmonic"))
-	        Es = multi_harmonic_potential({s0, s1}, V_params);
-
-	    else if(!pf.compare("quartic"))
-	        Es = quartic_potential({s0, s1}, V_params);
-		        
-	    else
-	        throw std::invalid_argument("Unknown potential function: " + pf);
-
-        // Calculate Boltzmann weights for current and next states 
-        // respectively.  
-	    std::vector<float> probs = boltzmann_weight(Es, beta);
-        
-        float acceptance_probability;
-        
-        if(probs[0] != 0)
-            acceptance_probability = std::min(1.0f, probs[1] / probs[0]);
-        
-        else
-            acceptance_probability = 1.0f;
-            
-        
-        // Pick a number from a uniform distribution in [0, 1]
-        std::uniform_real_distribution<float> uni_dist(0.0f, 1.0f);
+    std::uniform_real_distribution<double> uni_dist(0.0, 1.0);
 	
-	    // Perform the Metropolis Monte Carlo step
-        float rand_val = uni_dist(e1);	
+    // Initialize vectors for positions, energies, inverse-temperature 
+    std::vector<double> positions{};
+    std::vector<double> energies{};
+
+    for(long i = 0; i < nSteps; ++i)
+    {        
+        std::vector<double> currStep{{s0, stepSize}};
+
+        double s1{proposal(currStep, gen)};
         
-        if(rand_val < acceptance_probability)
+        currStep[1] = s1;
+
+        // Calculate energy
+        std::vector<double> Es{{potential(currStep, vParams)}};
+
+
+        /**
+         * Still within bounds?
+        */
+        
+        
+        if ( ! (s0 < walls[1] && s0 > walls[0]) && 
+             ! (s1 < walls[1] && s1 > walls[0]) )
+
+            throw std::runtime_error("You crossed a line tough guy.");
+
+
+        if ( ! (s0 < walls[1] && s0 > walls[0]) )
+        
+            Es[0] = std::numeric_limits<double>::max();
+
+        if (!(s1 < walls[1] && s1 > walls[0]))
+        
+            Es[1] = std::numeric_limits<double>::max();
+
+        
+        
+        /**
+         * Calculate Boltzmann weights for current and next states 
+         * respectively.  
+        */ 
+
+	    std::vector<double> probs = BoltzmannWeight(std::vector<double>{{Es[1] - Es[0]}}, beta);
+        double p_acc = std::min(1.0, probs[0]);
+        
+
+	    // Perform the Metropolis Monte Carlo step
+        double rand_val = uni_dist(gen);	
+        
+        if(rand_val < p_acc)
             s0 = s1;
         
+        positions.push_back(s0);   
+        energies.push_back(Es[0]);  
+
+        if (i % 10000 == 0)
+        {
+            std::random_device r;
+            gen.seed(r());
+        }
         
-        positions.push_back(s0);    // Store current position        
-        energies.push_back(Es[0]);  // Store current energy
     }
 
     // Return tuple of positions and energies
@@ -257,122 +126,171 @@ std::tuple<std::vector<float>, std::vector<float>> propagate_mcmc(float& s0,
 }
 
 
-std::vector<float> param_string_splitter(const std::string& s, char delimiter=',')
+bool accept_tremd_exchange(std::vector<double> Es, 
+                           std::vector<double> betas,                        // This is full gas, I made aliases for everything else but this. Goddammit. 
+                           std::default_random_engine& gen)
 {
-    /** 
-    *
-    * @brief Function to convert a string containing the function parameters
-    *        to a vectors containing different parameters (potential, proposal
-    *        Boltzmann weight, Monte Carlo steps).
-    *
-    * @param  s          - String to be split
-    * @param  delimiter  - The delimiter for the lines with multiple parameters. 
-    *
-    * @return split_vals - Values obtained by splitting the strings.
-    * 
-    */
+    /**
+     * Implementation of the acceptance criterion for temperature
+     * replica exchange MCMC.
+     * 
+     * @param   Es    - Energy values
+     * @param   betas - Inverse temperatures
+     * @param   gen   - Random number generator for the acceptance condition
+     */
+
+    double p_acc = std::min(1.0, std::exp(-(betas[0] - betas[1]) * (Es[0] - Es[1])));
+
+    // Pick a number from a uniform distribution in [0, 1]
+    std::uniform_real_distribution<double> uni_dist(0.0f, 1.0f);
+
+    // Perform the Metropolis Monte Carlo step and return result
+    return uni_dist(gen) < p_acc;
+}
+
+
+
+bool accept_hremd_exchange(std::vector<double> Es, 
+                           std::vector<double> betas, 
+                           std::default_random_engine& gen)
+{
+    /**
+     * Implementation of the acceptance criterion for Hamiltonian
+     * replica exchange MCMC.
+     * 
+     * @param   Es    - Energy values
+     * @param   betas - Inverse temperatures
+     * @param   gen   - Random number generator for the acceptance condition
+     */
+
+    double p_acc = std::min(1.0, std::exp(-(betas[0] * ( Es[1] - Es[0] )) - (betas[1] * ( Es[3] - Es[2] )) ) );
     
-    std::vector<float> split_vals;
-    
-    std::stringstream ss(s);
-    std::string item;
-    
-    while(std::getline(ss, item, delimiter))
-        if(!item.empty())
-            split_vals.push_back(std::stof(item));
-            
-    return split_vals;
+    // Pick a number from a uniform distribution in [0, 1]
+    std::uniform_real_distribution<double> uni_dist(0.0f, 1.0f);
+
+    // Perform the Metropolis Monte Carlo step and return result
+    return uni_dist(gen) < p_acc;
 }
 
 
 
 
-int main()
-{   
+void run_trex(std::vector<ReplicaInfo>& init_reps,
+                               double step_size, 
+                               long n_steps, 
+                               long n_ex, 
+                               std::function< std::vector<double> ( const std::vector<double>&, 
+                                                         const std::vector<std::vector<double>>& ) > potential,
+                               std::function< double ( std::vector<double>&, 
+                                                            std::default_random_engine&) > proposal, 
+                               char ex_type = 'h')
+{
+    // Initialize random number generator
+    std::random_device r;
+    std::default_random_engine gen(r());
+    std::vector<double> betas_;
+    bool ex_jj1 = true;
+    size_t k = 0;
     
-    std::unordered_map<std::string, std::string> all_params;
-    
-    std::string param_filename;
-    
-    std::cout << "Entire input file name: ";
-    std::cin >> param_filename;
-    
-    std::ifstream param_file(param_filename);
+    std::vector<double> Es;
 
-    if(!param_file.is_open())
-        throw std::runtime_error("Input file '" + param_filename + "' not found.");
-    
-    std::string line;
-    
-    while(std::getline(param_file, line))
-    {
-        if(line.empty() || line[0] == '#')
-            continue;
-            
-        // Read the line
-        std::istringstream iss(line);
-        std::string key, val;
         
-        // Store in the unordered map i.e. dictionary
-        if(std::getline(iss, key, '=') && std::getline(iss, val))                
-            all_params[key] = val;
+    std::cout << "=== Starting MCMC TREx " << " ===" << std::endl;
+    
+    for(long i = 0; i < n_ex; ++i)
+    {                
+        // Propagate all replicas
+        for(size_t j = 0; j < init_reps.size(); ++j)
+        {
+            ReplicaInfo& curr_rep = init_reps[j];
+            
+            auto [positions, energies] = propagate_mcmc(curr_rep.x0, 
+                                                        step_size, 
+                                                        curr_rep.betas.back(),
+                                                        curr_rep.repids.back(),
+                                                        curr_rep.vParams,  
+                                                        n_steps, 
+                                                        gen, 
+                                                        potential, 
+                                                        proposal, 
+                                                        curr_rep.walls);
+
+            double temp_beta{curr_rep.betas.back()};
+            int temp_repid{curr_rep.repids.back()};
+
+            for (size_t WriteIdx=0; WriteIdx < n_steps; ++WriteIdx)
+            {
+                curr_rep.positions.push_back(positions[WriteIdx]);
+                curr_rep.freeEnergy.push_back(energies[WriteIdx]); 
+            }    
+
+            for (size_t WriteIdx=0; WriteIdx < n_steps - 1; ++WriteIdx)
+            {
+                curr_rep.repids.push_back(temp_repid);
+                curr_rep.betas.push_back(temp_beta);
+            }    
+                
+        }
+
+        k = 0;
+        ex_jj1 = true;
+
+        for(size_t j = ((i % 2) == 0)?0:1; j < init_reps.size(); j += 2)
+        {
+            k = (j + 1) % init_reps.size();
+
+            switch(ex_type)
+            {
+                case 't':
+                    Es = {init_reps[j].freeEnergy.back(), init_reps[k].freeEnergy.back()};
+                    betas_ = {init_reps[j].betas.back(), init_reps[k].betas.back()};
+                    ex_jj1 = accept_tremd_exchange(Es, betas_, gen);
+        
+                case 'h':
+                    
+                    Es = {init_reps[j].freeEnergy.back()};
+                    Es.push_back(potential(std::vector<double>{{init_reps[k].positions.back()}}, init_reps[j].vParams)[0]);
+
+                    Es.push_back(init_reps[k].freeEnergy.back());
+                    Es.push_back(potential(std::vector<double>{{init_reps[j].positions.back()}}, init_reps[k].vParams)[0]);
+                    
+                    betas_ = {init_reps[j].betas.back(), init_reps[k].betas.back()};
+                    ex_jj1 = accept_hremd_exchange(Es, betas_, gen);
+
+                default:
+                    break;
+            }
+            
+
+            if (ex_jj1)
+            {
+                // Exchange successful, switch params and append betas
+                std::swap(init_reps[j].vParams, init_reps[k].vParams);
+                
+                double temp_beta1{init_reps[j].betas.back()}, temp_beta2{init_reps[k].betas.back()};
+                init_reps[j].betas.push_back(temp_beta2);
+                init_reps[k].betas.push_back(temp_beta1);
+                
+                int repj{init_reps[j].repids.back()}, repk{init_reps[k].repids.back()};
+                init_reps[j].repids.push_back(repk);
+                init_reps[k].repids.push_back(repj);
+            }            
+            else
+            {
+                // No exchange, keep same betas
+                
+                double temp_beta{init_reps[j].betas.back()};
+                init_reps[j].betas.push_back(temp_beta);
+
+                temp_beta =init_reps[k].betas.back();
+                init_reps[k].betas.push_back(temp_beta);
+                
+
+                int repj{init_reps[j].repids.back()}, repk{init_reps[k].repids.back()};
+                init_reps[j].repids.push_back(repj);
+                init_reps[k].repids.push_back(repk);
+            }
+        }    
     }
-    
-    // Names of the parameters expected for the two potential functions
-    std::vector<std::string> gaussian_params = {"amplitudes", "means", "variances"};
-    std::vector<std::string> harmonic_params = {"scales", "vertices", "offsets"};
-    std::vector<std::string> quartic_params = {"roots_scale_offset"};
-    
-    float s0, step_size, beta, n_steps;
-    std::string pf = all_params["pf"];
-    
-    std::vector<std::vector<float>> V_params_t;
-    
-    if(!pf.compare("gaussian"))
-        for(auto& param : gaussian_params)
-            V_params_t.push_back(param_string_splitter(all_params[param]));
 
-    else if (!pf.compare("harmonic"))
-        for(auto& param:harmonic_params)
-            V_params_t.push_back(param_string_splitter(all_params[param]));
-    
-    else if (!pf.compare("quartic"))
-        for(auto& param:quartic_params)
-            V_params_t.push_back(param_string_splitter(all_params[param]));
-    
-    else
-        throw std::invalid_argument("Unknown potential function.");
-    
-            
-    std::vector<std::vector<float>> V_params(V_params_t[0].size(), std::vector<float>(V_params_t.size()));
-    
-    for(size_t i = 0; i < V_params_t.size(); ++i)
-        for(size_t j = 0; j < V_params_t[0].size(); ++j)
-            V_params[j][i] = V_params_t[i][j];
-            
-    s0 = std::stof(all_params["s0"]);
-    step_size = std::stof(all_params["step_size"]);
-    beta = std::stof(all_params["beta"]);
-    n_steps = std::stoi(all_params["n_steps"]);        
-   
-    std::string out_suffix = all_params["out_suffix"];
-
-    auto [trajectory, energy] = propagate_mcmc(s0, step_size, V_params, beta, n_steps, pf);
-
-    std::ofstream trajectory_file("trajectory_" + out_suffix + ".txt");
-    
-    for (const float& value : trajectory) 
-        trajectory_file << value << '\n';
-    
-    trajectory_file.close();
-
-
-    std::ofstream energy_file("energies_" + out_suffix  + ".txt");
-    
-    for (const float& value : energy) 
-        energy_file << value << '\n';
-
-    energy_file.close();
-
-    return 0;
 }
