@@ -1,8 +1,8 @@
 step_size=0.05
-n_steps=5000
-n_ex=10000
+n_steps=1000
+n_ex=10
 pof=gaussian
 prf=uniform
 nwx=100
-prefix=30/t
+prefix=example_run/t
 format=bin
