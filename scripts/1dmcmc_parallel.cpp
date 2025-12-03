@@ -1,32 +1,27 @@
 #pragma once
 
 #include <vector>
-#include <utility>
 #include <random>
 #include <numbers>
-#include <fstream>
-#include <sstream>
 #include <stdexcept>
 #include <tuple>
 #include <unordered_map>
 #include "potentials.cpp"
 #include "proposal_inversion.cpp"
-#include <NamedType/named_type.hpp>
-
 
 
 std::tuple<std::vector<double>, std::vector<double>> propagate_mcmc(double& s0,
-                                        double stepSize, 
-                                        double beta, 
-                                        int replicaId,
-                                        std::vector<std::vector<double>> vParams, 
-                                        long nSteps, 
-                                        std::default_random_engine& gen,
-                                        std::function< std::vector<double> ( const std::vector<double>&, 
-                                                         const std::vector<std::vector<double>>& ) > potential,
-                                        std::function< double ( std::vector<double>&, 
-                                                            std::default_random_engine&) > proposal,
-                                        std::vector<double> walls)
+                                                                    double stepSize, 
+                                                                    double beta, 
+                                                                    int replicaId,
+                                                                    std::vector<std::vector<double>> vParams, 
+                                                                    long nSteps, 
+                                                                    std::default_random_engine& gen,
+                                                                    std::function< std::vector<double> ( const std::vector<double>&, 
+                                                                                                         const std::vector<std::vector<double>>& ) > potential,
+                                                                    std::function< double ( std::vector<double>&, 
+                                                                                            std::default_random_engine&) > proposal,
+                                                                    std::vector<double> walls)
 {
     /**
     *
@@ -64,43 +59,42 @@ std::tuple<std::vector<double>, std::vector<double>> propagate_mcmc(double& s0,
 
     for(long i = 0; i < nSteps; ++i)
     {        
-        std::vector<double> currStep{{s0, stepSize}};
+        std::vector<double> currStep{s0, stepSize};
 
         double s1{proposal(currStep, gen)};
         
         currStep[1] = s1;
 
         // Calculate energy
-        std::vector<double> Es{{potential(currStep, vParams)}};
-
-
+        std::vector<double> Es{potential(currStep, vParams)};
         /**
          * Still within bounds?
         */
-        
-        
-        if ( ! (s0 < walls[1] && s0 > walls[0]) && 
-             ! (s1 < walls[1] && s1 > walls[0]) )
-
+        if ( ! ((s0 < walls[1] && s0 > walls[0]) && 
+                (s1 < walls[1] && s1 > walls[0])) )
+        {
+            std::cout << '\n' << s0 << ", "<< s1 << std::endl;
             throw std::runtime_error("You crossed a line tough guy.");
-
-
-        if ( ! (s0 < walls[1] && s0 > walls[0]) )
+        }        
         
-            Es[0] = std::numeric_limits<double>::max();
 
-        if (!(s1 < walls[1] && s1 > walls[0]))
-        
-            Es[1] = std::numeric_limits<double>::max();
+
+        // if ( ! (s0 < walls[1] && s0 > walls[0]) )
+        //     throw std::runtime_error("You crossed a line tough guy.");
 
         
+        // if (!(s1 < walls[1] && s1 > walls[0]))
+        //     throw std::runtime_error("You crossed a line tough guy.");
+            
+
+        // std::cout << "Step " << i << " (current, proposed): " << currStep[0] << ", " << currStep[1] << '\n';
         
         /**
          * Calculate Boltzmann weights for current and next states 
          * respectively.  
         */ 
 
-	    std::vector<double> probs = BoltzmannWeight(std::vector<double>{{Es[1] - Es[0]}}, beta);
+	    std::vector<double> probs = BoltzmannWeight(std::vector<double>{Es[1] - Es[0]}, beta);
         double p_acc = std::min(1.0, probs[0]);
         
 
@@ -110,14 +104,10 @@ std::tuple<std::vector<double>, std::vector<double>> propagate_mcmc(double& s0,
         if(rand_val < p_acc)
             s0 = s1;
         
+        // std::cout << "After step " << i << ": " << s0 << '\n';
+
         positions.push_back(s0);   
         energies.push_back(Es[0]);  
-
-        if (i % 10000 == 0)
-        {
-            std::random_device r;
-            gen.seed(r());
-        }
         
     }
 
@@ -127,22 +117,24 @@ std::tuple<std::vector<double>, std::vector<double>> propagate_mcmc(double& s0,
 
 
 bool accept_tremd_exchange(std::vector<double> Es, 
-                           std::vector<double> betas,                        // This is full gas, I made aliases for everything else but this. Goddammit. 
+                           std::vector<double> betas,
                            std::default_random_engine& gen)
 {
     /**
-     * Implementation of the acceptance criterion for temperature
-     * replica exchange MCMC.
+     * @brief   Implementation of the acceptance criterion for temperature
+     *          replica exchange MCMC.
      * 
      * @param   Es    - Energy values
      * @param   betas - Inverse temperatures
      * @param   gen   - Random number generator for the acceptance condition
      */
 
-    double p_acc = std::min(1.0, std::exp(-(betas[0] - betas[1]) * (Es[0] - Es[1])));
+    double p_acc = std::min(1.0, std::exp((betas[0] - betas[1]) * (Es[0] - Es[1])));
 
     // Pick a number from a uniform distribution in [0, 1]
     std::uniform_real_distribution<double> uni_dist(0.0f, 1.0f);
+
+    // std::cout << betas[0] << ',' << betas[1] << ',' << p_acc << '\n';
 
     // Perform the Metropolis Monte Carlo step and return result
     return uni_dist(gen) < p_acc;
@@ -155,8 +147,8 @@ bool accept_hremd_exchange(std::vector<double> Es,
                            std::default_random_engine& gen)
 {
     /**
-     * Implementation of the acceptance criterion for Hamiltonian
-     * replica exchange MCMC.
+     * @brief   Implementation of the acceptance criterion for Hamiltonian
+     *          replica exchange MCMC.
      * 
      * @param   Es    - Energy values
      * @param   betas - Inverse temperatures
@@ -180,27 +172,28 @@ void run_trex(std::vector<ReplicaInfo>& init_reps,
                                long n_steps, 
                                long n_ex, 
                                std::function< std::vector<double> ( const std::vector<double>&, 
-                                                         const std::vector<std::vector<double>>& ) > potential,
+                                                                    const std::vector<std::vector<double>>& ) > potential,
                                std::function< double ( std::vector<double>&, 
-                                                            std::default_random_engine&) > proposal, 
-                               char ex_type = 'h')
+                                                       std::default_random_engine&) > proposal, 
+                               char ex_type = 't')
 {
     // Initialize random number generator
     std::random_device r;
     std::default_random_engine gen(r());
     std::vector<double> betas_;
-    bool ex_jj1 = true;
-    size_t k = 0;
-    
-    std::vector<double> Es;
+    bool ex_jk = true;
+    size_t k_{0}, k{0}, j{0};
 
+    std::vector<double> Es;
+    size_t nreps = init_reps.size();
+    std::vector<size_t> indices(nreps);
         
     std::cout << "=== Starting MCMC TREx " << " ===" << std::endl;
     
     for(long i = 0; i < n_ex; ++i)
     {                
         // Propagate all replicas
-        for(size_t j = 0; j < init_reps.size(); ++j)
+        for(size_t j = 0; j < nreps; ++j)
         {
             ReplicaInfo& curr_rep = init_reps[j];
             
@@ -217,7 +210,7 @@ void run_trex(std::vector<ReplicaInfo>& init_reps,
 
             double temp_beta{curr_rep.betas.back()};
             int temp_repid{curr_rep.repids.back()};
-
+            // std::cout << temp_beta << ", " << temp_repid << '\n';
             for (size_t WriteIdx=0; WriteIdx < n_steps; ++WriteIdx)
             {
                 curr_rep.positions.push_back(positions[WriteIdx]);
@@ -231,38 +224,48 @@ void run_trex(std::vector<ReplicaInfo>& init_reps,
             }    
                 
         }
+        
+        std::iota(indices.begin(), indices.end(), 0);
+        std::sort(indices.begin(), indices.end(), 
+                [&init_reps](size_t i, size_t j){
+                    return init_reps[i].betas.back() < init_reps[j].betas.back();
+                });
+            
+        // std::vector<size_t> reverse_map(nreps);
 
-        k = 0;
-        ex_jj1 = true;
+        // for (size_t idx=0; idx < nreps; ++idx)
+        //     reverse_map[indices[idx]] = idx;
 
-        for(size_t j = ((i % 2) == 0)?0:1; j < init_reps.size(); j += 2)
+        for(size_t j_ = ((i % 2) == 0)?0:1; j_ < nreps; j_ += 2)
         {
-            k = (j + 1) % init_reps.size();
+            k_ = (j_ + 1) % nreps;
 
+            j = indices[j_];
+            k = indices[k_];
+
+            betas_ = {init_reps[j].betas.back(), init_reps[k].betas.back()};
             switch(ex_type)
             {
                 case 't':
                     Es = {init_reps[j].freeEnergy.back(), init_reps[k].freeEnergy.back()};
-                    betas_ = {init_reps[j].betas.back(), init_reps[k].betas.back()};
-                    ex_jj1 = accept_tremd_exchange(Es, betas_, gen);
-        
-                case 'h':
-                    
-                    Es = {init_reps[j].freeEnergy.back()};
-                    Es.push_back(potential(std::vector<double>{{init_reps[k].positions.back()}}, init_reps[j].vParams)[0]);
-
-                    Es.push_back(init_reps[k].freeEnergy.back());
-                    Es.push_back(potential(std::vector<double>{{init_reps[j].positions.back()}}, init_reps[k].vParams)[0]);
-                    
-                    betas_ = {init_reps[j].betas.back(), init_reps[k].betas.back()};
-                    ex_jj1 = accept_hremd_exchange(Es, betas_, gen);
-
-                default:
+                    ex_jk = accept_tremd_exchange(Es, betas_, gen);
                     break;
+                    
+                case 'h':
+                    Es = {
+                        init_reps[j].freeEnergy.back(),
+                        potential(std::vector<double>{init_reps[k].positions.back()}, init_reps[j].vParams)[0],
+                        init_reps[k].freeEnergy.back(),
+                        potential(std::vector<double>{init_reps[j].positions.back()}, init_reps[k].vParams)[0]
+                    };
+                    ex_jk = accept_hremd_exchange(Es, betas_, gen);
+                    break;
+                    
+                default:
+                    throw std::runtime_error("Invalid exchange method: '" + std::string(1, ex_type) + "'");
             }
             
-
-            if (ex_jj1)
+            if (ex_jk)
             {
                 // Exchange successful, switch params and append betas
                 std::swap(init_reps[j].vParams, init_reps[k].vParams);

@@ -22,21 +22,19 @@ std::vector<double> multi_gaussian_potential(const std::vector<double>& s,
     *                        points.
     *
     */
-    
-    std::vector<double> sumGaussians(std::vector<double>(s.size(), 0.0));
+    std::vector<double> sumGaussians(s.size(), 0.0);
     
     #pragma omp parallel for
     for(size_t j = 0; j < s.size(); ++j) 
         for(size_t i = 0; i < params.size(); ++i) 
         {
-            double numerator = std::pow(s[j] - params[i][1], 2);
-            double denominator = 2 * std::pow(params[i][2], 2);
+            double numerator = (s[j] - params[i][1]) * (s[j] - params[i][1]);
+            double denominator = 2 * (params[i][2] * params[i][2]);
             
             double energy_contribution = params[i][0] * std::exp( - numerator / denominator);
 
             sumGaussians[j] += energy_contribution;
         }
-    
     return sumGaussians;
 }
 
@@ -63,14 +61,14 @@ std::vector<double> multi_harmonic_potential(const std::vector<double>& s,
 
         #pragma omp parallel for
         for(size_t i = 0; i < params.size(); ++i)
-	    for(size_t j = 0; j < s.size(); ++j)
-	    {
-	        double contribution = params[i][0] * 
-	                             std::pow(s[j]-params[i][1], 2) +
-				     params[i][2];
-	                             
-	        mhp[j] = std::min(contribution, mhp[j]);
-	    }
+            for(size_t j = 0; j < s.size(); ++j)
+            {
+                double contribution = (params[i][0] * 
+                                    (s[j]-params[i][1]) * (s[j]-params[i][1])) +
+                        params[i][2];
+                                    
+                mhp[j] = std::min(contribution, mhp[j]);
+            }
 
     return mhp;
 }
@@ -95,7 +93,7 @@ std::vector<double> quartic_potential(const std::vector<double>& s,
     
     std::vector<double> qp(s.size(), 0.0);
 
-    #pragma omp parallel for
+    // #pragma omp parallel for
     for(size_t i = 0; i < s.size(); ++i)
 	    qp[i] = ((s[i] - params[0][0]) *
 	            (s[i] - params[1][0]) * 

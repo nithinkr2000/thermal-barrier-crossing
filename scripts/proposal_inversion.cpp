@@ -2,8 +2,6 @@
 #include <vector>
 #include <random>
 #include <omp.h>
-#include "base.hpp"
-#include <functional>
 
 
 std::vector<double> BoltzmannWeight(const std::vector<double>& E, double beta)
@@ -21,19 +19,19 @@ std::vector<double> BoltzmannWeight(const std::vector<double>& E, double beta)
     *
     */
     
-    std::vector<double> boltzWeight(std::vector<double> (E.size()) );
+    std::vector<double> boltzWeight(E.size(), 0);
     
     // Parallelize the exponential calculation
     #pragma omp parallel for
-    for(size_t i = 0; i < E.size(); ++i) {
+    for(size_t i = 0; i < E.size(); ++i) 
         boltzWeight[i] = std::exp(-beta * E[i]);
-    }
+    
     
     return boltzWeight;
 }
 
 
-double gaussian_proposal(std::vector<double>& params, 
+double gaussian_proposal(std::vector<double> params, 
                          std::default_random_engine& gen)
 {
     /**

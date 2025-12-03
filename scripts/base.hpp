@@ -132,8 +132,8 @@ struct ReplicaInfo
 {
     double x0{0.0};
 
-    std::vector<int> repids{0};
-    std::vector<double> betas{0.0};
+    std::vector<int> repids{};
+    std::vector<double> betas{};
     std::vector<std::vector<double>> vParams{};
     
     std::vector<double> positions{};

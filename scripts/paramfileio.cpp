@@ -123,16 +123,11 @@ std::tuple<std::vector<double>, std::unordered_map<std::string, double>, std::ve
         }
     }
 
-    std::vector<std::vector<double>> V_params;
+    std::vector<std::vector<double>> V_params(V_params_t[0].size(), std::vector<double>(V_params_t.size()));
         
     for(size_t i = 0; i < V_params_t.size(); ++i)
-    {
-        std::vector<double> temp;
         for(size_t j = 0; j < V_params_t[0].size(); ++j)
-            temp.push_back(V_params_t[i][j]);
-
-        V_params.push_back(temp);
-    }    
+            V_params[j][i] = V_params_t[i][j];
 
 
     return std::make_tuple(walls, temp_pos, V_params);
