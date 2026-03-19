@@ -11,8 +11,7 @@
  * min(0, -beta * delE) is determined. Hence, 
  */
 
-EVec BoltzmannInversion(const EVec& E1, const EVec& E2, Betas invTemperature)
-{
+EVec BoltzmannInversion(const EVec& E1, const EVec& E2, Betas invTemperature){
 	assert(E1.size() == E2.size());
 	EVec betaEnergyDiff = E1 - E2;
 
