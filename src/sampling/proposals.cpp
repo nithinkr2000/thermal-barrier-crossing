@@ -1,27 +1,35 @@
 #include "../../include/sampling/proposals.hpp"
 
-PosVec GaussianProposal(Position x, std::default_random_engine& rGen, double stepSize){
-    Position nextStep(std::vector<double>(x.size(), 0.0));
+PosVec GaussianProposal(const PosVec& x, 
+    std::default_random_engine& rGen, 
+    double stepSize)
+{
+    PosVec nextStep(x);
 
-    for (int i{}; i < x.size(); ++i){
-        std::normal_distribution<double> normDist(x[i], stepSize);
-        nextStep[i] = normDist(rGen);
+    for (int repID{}; repID < nextStep.size(); ++repID)
+        for (int dimID{}; dimID < nextStep[repID].size(); ++dimID){
+            std::normal_distribution<double> normDist(nextStep[repID][dimID], stepSize);
+            nextStep[repID][dimID] += normDist(rGen);
     }    
 
-    return PosVec(std::vector<Position>{x - nextStep, x + nextStep});
+    return nextStep;
 }
 
 
-PosVec UniformProposal(Position x, std::default_random_engine& rGen, double stepSize)
+PosVec UniformProposal(const PosVec& x, 
+    std::default_random_engine& rGen, 
+    double stepSize)
 {
-    Position nextStep(std::vector<double>(x.size(), 0.0));
+    PosVec nextStep(x);
 
-    for (int i{}; i < x.size(); ++i){
-        std::uniform_real_distribution<double> uniDist(x[i] - stepSize, x[i] + stepSize);
-        nextStep[i] = uniDist(rGen);
+    for (int repID{}; repID < nextStep.size(); ++repID)
+        for (int dimID{}; dimID < nextStep[repID].size(); ++dimID){
+            
+            std::uniform_real_distribution<double> uniDist(nextStep[repID][dimID] - stepSize, nextStep[repID][dimID] + stepSize);
+            nextStep[repID][dimID] += uniDist(rGen);
     }    
 
-    return PosVec(std::vector<Position>{x - stepSize, x + stepSize});
+    return nextStep;
 }
 
 

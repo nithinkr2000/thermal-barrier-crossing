@@ -156,23 +156,13 @@ using Walls = fluent::NamedType<
 
 
 /**
- * Potential energy function (surface).
- * Maps a vector of positions and a set of kernel parameters to an
- * energy value.
- */
-using PotFunc = fluent::NamedType<
-    std::function<EVec (const PosVec&, const MultiFuncParams&)>,
-    struct PotFuncTag,
-    fluent::Callable>;
-
-/**
  * Proposal function.
  * Given the current position and step size packed in a PosVec,
  * returns the proposed next position as a scalar.
  * Is Gaussian or Uniform distributed.
  */
 using PropFunc = fluent::NamedType<
-    std::function<PosVec (Position&, std::default_random_engine&, double)>,
+    std::function<PosVec (const PosVec&, std::default_random_engine&, double)>,
     struct PropFuncTag,
     fluent::Callable>;
 
@@ -183,10 +173,6 @@ using Walls = fluent::NamedType<
     struct WallsTag,
     VectorInterface>;
 
-// ---------------------------------------------------------------------------
-// Replica state
-// ---------------------------------------------------------------------------
-
 /**
  * @brief All mutable state belonging to a single replica.
  *
@@ -196,7 +182,7 @@ using Walls = fluent::NamedType<
  */
 struct ReplicaInfo
 {
-    double          x0{0.0};          ///< Current (and initial) position.
+    Position        x0{};             ///< Current (and initial) position.
     Betas           betas{};          ///< Inverse-temperature history.
     RepIdcs         repids{};         ///< Parameter-set index history.
     MultiFuncParams vParams{};        ///< Current potential parameters.
@@ -209,3 +195,12 @@ struct ReplicaInfo
             }}};
 };
 
+/**
+ * Potential energy function (surface).
+ * Maps a vector of positions and a set of kernel parameters to an
+ * energy value.
+ */
+using PotFunc = fluent::NamedType<
+    std::function<EVec (const std::vector<ReplicaInfo>&)>,
+    struct PotFuncTag,
+    fluent::Callable>;
