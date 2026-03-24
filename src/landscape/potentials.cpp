@@ -16,7 +16,7 @@ EVec BoltzmannInversion(const EVec& E1, const EVec& E2, Betas invTemperature){
 	EVec betaEnergyDiff = E1 - E2;
 
 	for (int i{}; i < E1.size(); ++i)
-		betaEnergyDiff[i] *= invTemperature[i];
+		betaEnergyDiff[i] *= -invTemperature[i];
 
 	return betaEnergyDiff;
 }
@@ -27,13 +27,13 @@ EVec PotentialGaussianBasis(const PosVec& x, const MultiFuncParams& potentialPar
 
 	#pragma omp parallel for
 	for (int i{}; i < x.size(); ++i)
-    for (int j{}; j < potentialParams.size(); ++j) {
-        Position diff = x[i] - potentialParams[j][1]; 
-        double sq_norm = std::inner_product(diff.get().begin(), diff.get().end(), 
-                                            diff.get().begin(), 0.0);
+		for (int j{}; j < potentialParams.size(); ++j) {
+			Position diff = x[i] - potentialParams[j][1]; 
+			double sq_norm = std::inner_product(diff.get().begin(), diff.get().end(), 
+												diff.get().begin(), 0.0);
 
-        potentialEnergy[i] += potentialParams[j][0] * exp(-sq_norm / (2.0 * pow(potentialParams[j][2], 2)));
-    }
+			potentialEnergy[i] += potentialParams[j][0] * exp(-sq_norm / (2.0 * pow(potentialParams[j][2], 2)));
+		}
 	
 	return potentialEnergy;
 }
