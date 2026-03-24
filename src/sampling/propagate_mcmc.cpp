@@ -8,84 +8,18 @@
 
 
 
-void PropagateMCMC(std::vector<ReplicaInfo>& repInfo, 
-    Position& stepSize, 
-    long nSteps, 
-    std::default_random_engine& rGen, 
-    PotFunc potential,
-    PropFunc proposal)
-{
-
-    while(nSteps > 0)
-    {
-        // Proposing next position
-        PosVec x1{proposal(x0, rGen, stepSize)};
-        
-        // Calculate corresponding energy
-        EVec ENew{potential(repInfo)};
-        
-        
-        --nSteps;
-    };
-
-    // Pick a number from a uniform distribution in [0, 1] for the acceptance criterion
-    std::uniform_real_distribution<double> uni_dist(0.0, 1.0);
-	
-    // Initialize return vectors.
-    std::vector<double> positions{};
-    std::vector<double> energies{};
-    std::vector<double> temp;
-
-    for(long i = 0; i < n_steps; ++i)
-    {        
-        // Propose the next step       
-        temp = {x0, step_size};
-        double s1 = proposal(temp, gen);
-        
-        // Calculate energy
-        std::vector<double> Es{potential({x0, s1}, V_params)};
-
-        // Calculate Boltzmann weights for current and next states 
-        // respectively.  
-	    std::vector<double> probs = BoltzmannInversion({Es[1] - Es[0]}, beta);
-        double p_acc = std::min(1.0, probs[0]);
-        
-	    // Perform the Metropolis Monte Carlo step
-        double rand_val = uni_dist(gen);	
-        
-        if(rand_val < p_acc)
-            x0 = s1;
-        
-        positions.push_back(s0);    // Store current position        
-        energies.push_back(Es[0]);  // Store current energy
-
-        // Every 1000 steps, reseed the generator
-        if (i % 1000 == 0)
-        {
-            std::random_device r;
-            gen.seed(r());
-        }
-        
-    }
-
-    // Return tuple of positions and energies
-}
-
-
-
 std::vector<bool> MonteCarloAcceptance(const EVec& E1, 
-    const EVec& E2, 
-    Betas& invTemperature) 
+    const std::vector<ReplicaInfo>& repInfo) 
 {
-	assert(E1.size() == E2.size());
+	assert(E1.size() == repInfo.size());
 	
-    EVec betaEnergyDiff{E1 - E2};
+    EVec betaEnergyDiff{};
     std::vector<bool> mcmcAcceptance(E1.size(), false);
 
-	for (int i{}; i < E1.size(); ++i)
+	for (int repID{}; repID < E1.size(); ++repID)
 	{
-        betaEnergyDiff[i] *= -invTemperature[i];
-        mcmcAcceptance[i] = std::min(0.0, betaEnergyDiff[i]);
+        betaEnergyDiff.push_back(repInfo[repID].betas.back() * (repInfo[repID].freeEnergy.back() - E1[repID]));
+        mcmcAcceptance[repID] = std::min(0.0, betaEnergyDiff.back());
     }	
 
 	return mcmcAcceptance;
@@ -94,12 +28,76 @@ std::vector<bool> MonteCarloAcceptance(const EVec& E1,
 
 
 
-void ReplicaExchangeMain(std::vector<RepInfo>& init_reps,
+void PropagateMCMC(std::vector<ReplicaInfo>& repInfo, 
+    Position& stepSize, 
+    long nSteps, 
+    std::default_random_engine& rGen, 
+    const PotFunc& potential,
+    const PropFunc& proposal)
+{  
+
+    std::uniform_real_distribution<double> uni_dist(0.0, 1.0);
+    PosVec x1{};
+
+    for (auto& repi: repInfo)
+        x1.push_back(repi.x0);
+
+    while(nSteps > 0)
+    {
+        // Proposing next position
+        x1 = proposal(x1, rGen, stepSize);
+        
+        // Calculate corresponding energy
+        EVec ENew{potential(x1, repInfo)};
+        
+        std::vector<bool> mcmcAcceptance{MonteCarloAcceptance(ENew, repInfo)};
+        
+        for (size_t repID{}; repID < mcmcAcceptance.size(); ++repID)
+        {
+            if (mcmcAcceptance[repID]){
+                
+                repInfo[repID].positions.push_back(x1[repID]);
+                repInfo[repID].x0 = repInfo[repID].positions.back();
+                
+                double tempBeta{repInfo[repID].betas.back()};
+                repInfo[repID].betas.push_back(tempBeta);
+                
+                int tempIdx{repInfo[repID].repids.back()};
+                repInfo[repID].repids.push_back(tempIdx);
+
+                repInfo[repID].freeEnergy.push_back(ENew[repID]);
+            }
+
+            else{
+                Position tempPos{repInfo[repID].positions.back()};
+                repInfo[repID].positions.push_back(tempPos);
+
+                double tempBeta{repInfo[repID].betas.back()};
+                repInfo[repID].betas.push_back(tempBeta);
+                
+                int tempIdx{repInfo[repID].repids.back()};
+                repInfo[repID].repids.push_back(tempIdx);
+
+                double tempEnergy = repInfo[repID].freeEnergy.back();
+                repInfo[repID].freeEnergy.push_back(tempEnergy);
+            }
+
+        }
+        
+        --nSteps;
+}
+}
+
+
+
+
+
+void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
                          double step_size, 
                          long n_steps, 
                          long n_ex, 
-                         PotentialFunc potential,
-                         ProposalFunc proposal)
+                         const PotFunc& potential,
+                         const PropFunc& proposal)
 {
     /**
      * @brief   Function to propagate the replica exchange simulation.

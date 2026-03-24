@@ -201,6 +201,6 @@ struct ReplicaInfo
  * energy value.
  */
 using PotFunc = fluent::NamedType<
-    std::function<EVec (const std::vector<ReplicaInfo>&)>,
+    std::function<EVec (const PosVec&, const std::vector<ReplicaInfo>&)>,
     struct PotFuncTag,
     fluent::Callable>;
