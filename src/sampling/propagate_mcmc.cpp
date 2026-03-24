@@ -54,38 +54,22 @@ void PropagateMCMC(std::vector<ReplicaInfo>& repInfo,
         
         for (size_t repID{}; repID < mcmcAcceptance.size(); ++repID)
         {
-            if (mcmcAcceptance[repID]){
-                
-                repInfo[repID].positions.push_back(x1[repID]);
-                repInfo[repID].x0 = repInfo[repID].positions.back();
-                
-                double tempBeta{repInfo[repID].betas.back()};
-                repInfo[repID].betas.push_back(tempBeta);
-                
-                int tempIdx{repInfo[repID].repids.back()};
-                repInfo[repID].repids.push_back(tempIdx);
+            bool accepted = mcmcAcceptance[repID];
+            auto& rep = repInfo[repID];
 
-                repInfo[repID].freeEnergy.push_back(ENew[repID]);
-            }
+            rep.positions.push_back(accepted ? x1[repID] : rep.positions.back());
 
-            else{
-                Position tempPos{repInfo[repID].positions.back()};
-                repInfo[repID].positions.push_back(tempPos);
+            if (accepted) 
+                rep.x0 = rep.positions.back();
 
-                double tempBeta{repInfo[repID].betas.back()};
-                repInfo[repID].betas.push_back(tempBeta);
-                
-                int tempIdx{repInfo[repID].repids.back()};
-                repInfo[repID].repids.push_back(tempIdx);
+            rep.betas.push_back(rep.betas.back());
+            rep.repids.push_back(rep.repids.back());
 
-                double tempEnergy = repInfo[repID].freeEnergy.back();
-                repInfo[repID].freeEnergy.push_back(tempEnergy);
-            }
-
+            rep.freeEnergy.push_back(accepted ? ENew[repID] : rep.freeEnergy.back());
         }
         
         --nSteps;
-}
+    };
 }
 
 
