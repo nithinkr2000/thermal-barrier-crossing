@@ -1,0 +1,8 @@
+step_size=0.05
+n_steps=5000
+n_ex=10000
+pof=gaussian
+prf=uniform
+nwx=100
+prefix=30/t
+format=bin

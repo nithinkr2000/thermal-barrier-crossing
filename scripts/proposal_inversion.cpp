@@ -1,35 +1,38 @@
-#include <../core/param_sets.hpp>
-#include <../core/helper_funcs.hpp>
-#include <../sampling/mcmc_1d.hpp>
+#pragma once
+#include <vector>
+#include <random>
 #include <omp.h>
-#include <cmath>
 
-StateVec BoltzmannInversion(const StateVec& E, double& beta)
+
+std::vector<double> BoltzmannWeight(const std::vector<double>& E, double beta)
 {
     /**
-    * @brief    Perform boltzmann inversion to determine the Boltzmann weights of
-    *           the passed states.
-    * 
-    * @param    E      -   The energies for which the inversion is to be performed.
-    * @param    beta   -   The inverse of the temperature (1/kT).
-    * 
-    * @return   bw     -   The inverted Boltzmann weights.
-    * 
+    *
+    * @brief Calculates Boltzmann weight based on potential energy 
+    *        passed. Does not scale with partition function. 
+    *
+    * @param  E    - Set of energy values.
+    * @param  beta - 1/kT where k is the Boltzmann constant T is the
+    *               temperature.
+    *
+    * @return bw   - Boltzmann weights for the energies in E.
+    *
     */
-
-    StateVec bw(E.size());
+    
+    std::vector<double> boltzWeight(E.size(), 0);
     
     // Parallelize the exponential calculation
     #pragma omp parallel for
-    for(size_t i = 0; i < E.size(); ++i)
-        bw[i] = std::exp(-beta * E[i]);
+    for(size_t i = 0; i < E.size(); ++i) 
+        boltzWeight[i] = std::exp(-beta * E[i]);
     
-    return bw;
+    
+    return boltzWeight;
 }
 
 
-double GaussianProposal(const StateVec& params,
-                        std::default_random_engine& gen)
+double gaussian_proposal(std::vector<double> params, 
+                         std::default_random_engine& gen)
 {
     /**
     *
@@ -51,8 +54,9 @@ double GaussianProposal(const StateVec& params,
     return normal_dist(gen);
 }
 
-double UniformProposal(const StateVec& params, 
-                       std::default_random_engine& gen)
+
+double uniform_proposal(std::vector<double>& params, 
+                        std::default_random_engine& gen)
 {
     /**
     *
