@@ -10,18 +10,15 @@
 #include "proposal_inversion.cpp"
 
 
-std::tuple<std::vector<double>, std::vector<double>> propagate_mcmc(double& s0,
-                                                                    double stepSize, 
-                                                                    double beta, 
-                                                                    int replicaId,
-                                                                    std::vector<std::vector<double>> vParams, 
-                                                                    long nSteps, 
-                                                                    std::default_random_engine& gen,
-                                                                    std::function< std::vector<double> ( const std::vector<double>&, 
-                                                                                                         const std::vector<std::vector<double>>& ) > potential,
-                                                                    std::function< double ( std::vector<double>&, 
-                                                                                            std::default_random_engine&) > proposal,
-                                                                    std::vector<double> walls)
+std::tuple< std::vector<double>, std::vector<double> > propagate_mcmc(double& s0,
+    double stepSize, 
+    double beta, 
+    int replicaId,
+    std::vector<std::vector<double>> vParams, 
+    long nSteps, 
+    std::default_random_engine& gen,
+    std::function< std::vector<double> ( const std::vector<double>&, const std::vector<std::vector<double>>& ) > potential,
+    std::function< double ( std::vector<double>&, std::default_random_engine&) > proposal, std::vector<double> walls)
 {
     /**
     *

@@ -3,7 +3,7 @@
 
 #include "../core/base.hpp"
 
-EVec BoltzmannInversion(const EVec&, Betas);
+EVec BoltzmannInversion(const EVec&, const Betas&);
 PotFunc PotentialGaussianBasis;
 
 #endif

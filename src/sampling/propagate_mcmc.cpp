@@ -8,7 +8,7 @@
 
 
 
-std::vector<bool> MonteCarloAcceptance(const EVec& E1, 
+std::vector<bool> MetropolisHastingsAcceptance(const EVec& E1, 
     const std::vector<ReplicaInfo>& repInfo) 
 {
 	assert(E1.size() == repInfo.size());
@@ -50,7 +50,7 @@ void PropagateMCMC(std::vector<ReplicaInfo>& repInfo,
         // Calculate corresponding energy
         EVec ENew{potential(x1, repInfo)};
         
-        std::vector<bool> mcmcAcceptance{MonteCarloAcceptance(ENew, repInfo)};
+        std::vector<bool> mcmcAcceptance{MetropolisHastingsAcceptance(ENew, repInfo)};
         
         for (size_t repID{}; repID < mcmcAcceptance.size(); ++repID)
         {
@@ -74,6 +74,37 @@ void PropagateMCMC(std::vector<ReplicaInfo>& repInfo,
 
 
 
+void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
+    const Position& stepSize,
+    int& exIdx,
+    std::default_random_engine& rGen, 
+    const PotFunc& potential)
+{
+    bool exAcceptance = true;
+    std::vector<size_t> swapIdcs;
+    std::vector<size_t> repIdcs;
+    
+    for (size_t repIdx{exIdx % 2}; repIdx < repInfo.size(); repIdx += 2)
+    {
+        repIdcs.push_back(repIdx);
+        swapIdcs.push_back((repIdx + 1) % repInfo.size());
+    }m the terminal. Essentially, vim or nvim. I would like to learn the finger move
+    
+    
+
+        EVec betaEnergy = BoltzmannInversion(EVec(std::vector<double>{cuRep.freeEnergy.back(), 
+                                                                      exRep.freeEnergy.back(), 
+                                                                      cuRep.freeEnergy.back(), 
+                                                                      exRep.freeEnergy.back()}), 
+                                             Betas(std::vector<double>{cuRep.betas.back(), 
+                                                                       exRep.betas.back(), 
+                                                                       exRep.betas.back(), 
+                                                                       cuRep.betas.back()}));
+        
+        
+ 
+};
+
 
 
 void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
@@ -83,24 +114,7 @@ void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
                          const PotFunc& potential,
                          const PropFunc& proposal)
 {
-    /**
-     * @brief   Function to propagate the replica exchange simulation.
-     *          Perform MCMC simulations, exchanges at predetermined
-     *          intervals and updates positions, energies and temperatures
-     *          accordingly.
-     * 
-     * @param   init_reps   -  The set of replicas for which simulations are 
-     *                         to be performed. Contains instances of RepInfo
-     *                         which contains positions, energies, temperatures,
-     *                         starting structures and potential energy parameters.
-     * @param   stepsize    -  The step size for the MCMC simulation.
-     * @param   n_steps     -  Number of steps performed between each exchange attempt.
-     * @param   n_ex        -  The number of exchanges performed in total.
-     * @param   potential   -  The potential energy function.
-     * @param   proposal    -  The proposal function for the next step.
-     * 
-     * Modifies init_reps by reference.
-     */
+    
     // Initialize random number generator
     std::random_device r;
     std::default_random_engine gen(r());

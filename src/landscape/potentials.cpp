@@ -12,7 +12,7 @@
  */
 
 EVec BoltzmannInversion(const EVec& E, 
-	Betas& invTemperature)
+	const Betas& invTemperature)
 {
 	EVec betaEnergy(E);
 

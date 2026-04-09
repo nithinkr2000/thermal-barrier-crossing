@@ -19,12 +19,10 @@ void PropagateMCMC( std::vector<ReplicaInfo>& repInfo,
     
 std::vector<bool> MonteCarloAcceptance(const EVec& E1, const std::vector<ReplicaInfo>&);                                              
 
-void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
-                         double step_size, 
-                         long n_steps, 
-                         long n_ex, 
-                         const PotFunc& potential,
-                         const PropFunc& proposal);
+void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
+    Position stepSize,
+    std::default_random_engine& rGen, 
+    const PotFunc& potential);
 
 
 #endif
