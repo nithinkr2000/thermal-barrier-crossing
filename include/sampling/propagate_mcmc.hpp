@@ -9,18 +9,20 @@
 #include <random>
 
 void PropagateMCMC( std::vector<ReplicaInfo>& repInfo,
-    std::vector<MultiFuncParams> allRepParams,
-    Position& stepSize,
-    long nSteps,
-    std::default_random_engine& gen, 
-    const PotFunc& potential, 
+    Position& stepSize, 
+    long nSteps, 
+    std::default_random_engine& rGen, 
+    const PotFunc& potential,
     const PropFunc& proposal);
 
     
-std::vector<bool> MonteCarloAcceptance(const EVec& E1, const std::vector<ReplicaInfo>&);                                              
+std::vector<bool> MetropolisHastingsAcceptance(const EVec& E1, 
+    const std::vector<ReplicaInfo>& repInfo,
+    std::default_random_engine& rGen); 
 
 void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
-    Position stepSize,
+    const Position& stepSize,
+    int& exIdx,
     std::default_random_engine& rGen, 
     const PotFunc& potential);
 

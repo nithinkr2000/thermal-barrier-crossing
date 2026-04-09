@@ -1,35 +1,63 @@
 #include "../../include/core/param_sets.hpp"
 #include "../../include/sampling/propagate_mcmc.hpp"
-#include "../landscape/potentials.cpp"
-#include "proposals.cpp"
+#include "../landscape/potentials.hpp"
+#include "../../include/sampling/proposals.hpp"
 #include <cassert>
 #include <string>
 #include <algorithm>
 
 
-
+/**
+ * 
+ * 
+ *  MH criterion for MCMC simulators (not tempering)
+ */ 
 std::vector<bool> MetropolisHastingsAcceptance(const EVec& E1, 
-    const std::vector<ReplicaInfo>& repInfo) 
+    const std::vector<ReplicaInfo>& repInfo, 
+    std::default_random_engine& rGen) 
 {
 	assert(E1.size() == repInfo.size());
-	
+	std::uniform_real_distribution<double> uniDist(0, 1);
+
     EVec betaEnergyDiff{};
     std::vector<bool> mcmcAcceptance(E1.size(), false);
 
 	for (int repID{}; repID < E1.size(); ++repID)
 	{
-        betaEnergyDiff.push_back(repInfo[repID].betas.back() * (repInfo[repID].freeEnergy.back() - E1[repID]));
-        mcmcAcceptance[repID] = std::min(0.0, betaEnergyDiff.back());
+        betaEnergyDiff.push_back(-repInfo[repID].betas.back() * (repInfo[repID].freeEnergy.back() - E1[repID]));
+        float accProb = std::min(1.0, std::exp(betaEnergyDiff.back()));
+        mcmcAcceptance[repID] = (accProb == 1.0) ? true : (uniDist(rGen) < accProb);
     }	
-
+        
 	return mcmcAcceptance;
 }
 
 
+/**   
+ * MH criterion for tempering algorithms
+ */
+std::vector<bool> BoltzmannInversion(const EVec& E, 
+	const Betas& invTemperature, 
+    std::default_random_engine& rGen) 
+{
+	std::uniform_real_distribution<double> uniDist(0, 1);
+
+    EVec betaEnergyDiff{};
+    std::vector<bool> mcmcAcceptance(E1.size(), false);
+
+	for (int repID{}; repID < E1.size(); ++repID)
+	{
+        betaEnergyDiff.push_back(-repInfo[repID].betas.back() * (repInfo[repID].freeEnergy.back() - E1[repID]));
+        float accProb = std::min(1.0, std::exp(betaEnergyDiff.back()));
+        mcmcAcceptance[repID] = (accProb == 1.0) ? true : (uniDist(rGen) < accProb);
+    }	
+        
+	return mcmcAcceptance;
+}
 
 
 void PropagateMCMC(std::vector<ReplicaInfo>& repInfo, 
-    Position& stepSize, 
+    const Position& stepSize, 
     long nSteps, 
     std::default_random_engine& rGen, 
     const PotFunc& potential,
@@ -50,22 +78,23 @@ void PropagateMCMC(std::vector<ReplicaInfo>& repInfo,
         // Calculate corresponding energy
         EVec ENew{potential(x1, repInfo)};
         
-        std::vector<bool> mcmcAcceptance{MetropolisHastingsAcceptance(ENew, repInfo)};
+        std::vector<bool> mcmcAcceptance{MetropolisHastingsAcceptance(ENew, repInfo, rGen)};
         
-        for (size_t repID{}; repID < mcmcAcceptance.size(); ++repID)
+        for (size_t repIdx{}; repIdx < mcmcAcceptance.size(); ++repIdx)
         {
-            bool accepted = mcmcAcceptance[repID];
-            auto& rep = repInfo[repID];
+            bool accepted = mcmcAcceptance[repIdx];
+            
+            auto& rep = repInfo[repIdx];
 
-            rep.positions.push_back(accepted ? x1[repID] : rep.positions.back());
+            rep.positions.push_back(accepted ? x1[repIdx] : rep.positions.back());
 
             if (accepted) 
                 rep.x0 = rep.positions.back();
 
             rep.betas.push_back(rep.betas.back());
             rep.repids.push_back(rep.repids.back());
-
-            rep.freeEnergy.push_back(accepted ? ENew[repID] : rep.freeEnergy.back());
+            
+            rep.freeEnergy.push_back(accepted ? ENew[repIdx] : rep.freeEnergy.back());
         }
         
         --nSteps;
@@ -76,7 +105,7 @@ void PropagateMCMC(std::vector<ReplicaInfo>& repInfo,
 
 void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
     const Position& stepSize,
-    int& exIdx,
+    const int& exIdx,
     std::default_random_engine& rGen, 
     const PotFunc& potential)
 {
@@ -84,28 +113,49 @@ void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
     std::vector<size_t> swapIdcs;
     std::vector<size_t> repIdcs;
     
-    for (size_t repIdx{exIdx % 2}; repIdx < repInfo.size(); repIdx += 2)
+    for (size_t repIdx{exIdx % 2}; repIdx < repInfo.size() - 1; repIdx += 2)
     {
         repIdcs.push_back(repIdx);
-        swapIdcs.push_back((repIdx + 1) % repInfo.size());
-    }m the terminal. Essentially, vim or nvim. I would like to learn the finger move
-    
-    
+        swapIdcs.push_back(repIdx + 1);
+    }
 
-        EVec betaEnergy = BoltzmannInversion(EVec(std::vector<double>{cuRep.freeEnergy.back(), 
-                                                                      exRep.freeEnergy.back(), 
-                                                                      cuRep.freeEnergy.back(), 
-                                                                      exRep.freeEnergy.back()}), 
-                                             Betas(std::vector<double>{cuRep.betas.back(), 
-                                                                       exRep.betas.back(), 
-                                                                       exRep.betas.back(), 
-                                                                       cuRep.betas.back()}));
+    // Handle wrap-around (exchange first and last replica) for odd exchange indices
+    if (exIdx % 2 == 1)
+    {
+        repIdcs.push_back(repInfo.size() - 1);
+        swapIdcs.push_back(0);
+    }  
+
+    for (size_t pairIdx{}; pairIdx < repIdcs.size(); ++pairIdx)
+    {
+        ReplicaInfo cuRep = repInfo[repIdcs[pairIdx]];
+        ReplicaInfo exRep = repInfo[swapIdcs[pairIdx]];
+
+        // Determine beta * energy differences for pair to be exchanged
+        // E1 * beta1, E2 * beta2, E1 * beta2, E2 * beta1
         
+        EVec bE = BoltzmannInversion(EVec(std::vector<double>{cuRep.freeEnergy.back(), 
+                                                                    exRep.freeEnergy.back(), 
+                                                                    cuRep.freeEnergy.back(), 
+                                                                    exRep.freeEnergy.back()}), 
+                                    Betas(std::vector<double>{cuRep.betas.back(), 
+                                                                    exRep.betas.back(), 
+                                                                    exRep.betas.back(), 
+                                                                    cuRep.betas.back()}));
         
- 
+        /**
+        * To avoid errors from finite precision, instead of min(1, exp(-delBeta * delE))
+        * min(0, -delBeta * delE) is determined. 
+        */
+        
+        float logProb {std::min(0.0, -(bE[0] - bE[2]) - (bE[1] - bE[3]))};
+        // Generate random number, check probability accept 
+        // bool accProb = (logProb > 0.0) ? 1.0: (std::exp(accProb));
+
+        if (true)                                       
+            std::cout << "Yasss";
+    }                                                            
 };
-
-
 
 void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
                          double step_size, 

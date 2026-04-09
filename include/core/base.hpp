@@ -12,8 +12,12 @@
 #include <vector>
 #include <utility>
 #include <NamedType/named_type.hpp>
+#include "NamedType/named_type_impl.hpp"
+// AND specifically
+#include "NamedType/underlying_functionalities.hpp"
 #include <numbers>
 #include <random>
+# include <cassert>
 
 // ---------------------------------------------------------------------------
 // Custom CRTP skill: exposes std::vector interface on named container types
@@ -46,13 +50,13 @@ struct VectorInterface : fluent::crtp<T1, VectorInterface>
     auto&       at(size_t i)               { return this->underlying().get().at(i); }
     const auto& at(size_t i)         const { return this->underlying().get().at(i); }
 
-    T1          operator+(const T1& a)     {
-        assert(this->underlying().get().size() == a.size());
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] += a[i];
-        return T1(temp);
-    }
+    // T1          operator+(const T1& a)     {
+    //     assert(this->underlying().get().size() == a.size());
+    //     auto temp = this->underlying().get();  // copy of the underlying vector
+    //     for (size_t i = 0; i < temp.size(); ++i)
+    //         temp[i] += a[i];
+    //     return T1(temp);
+    // }
 
     T1          operator+(const T1& a) const {
         assert(this->underlying().get().size() == a.size());
@@ -62,13 +66,13 @@ struct VectorInterface : fluent::crtp<T1, VectorInterface>
         return T1(temp);
     }
 
-    T1          operator-(const T1& a) {
-        assert(this->underlying().get().size() == a.size());
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] -= a[i];
-        return T1(temp);
-    }
+    // T1          operator-(const T1& a) {
+    //     assert(this->underlying().get().size() == a.size());
+    //     auto temp = this->underlying().get();  // copy of the underlying vector
+    //     for (size_t i = 0; i < temp.size(); ++i)
+    //         temp[i] -= a[i];
+    //     return T1(temp);
+    // }
 
     T1          operator-(const T1& a) const {
         assert(this->underlying().get().size() == a.size());
@@ -79,18 +83,10 @@ struct VectorInterface : fluent::crtp<T1, VectorInterface>
     }
 
     template <typename T2>
-    T1          operator+(const T2& a)     {
+    T1          operator+(const T2& a) const {
         auto temp = this->underlying().get();  // copy of the underlying vector
         for (size_t i = 0; i < temp.size(); ++i)
             temp[i] += a;
-        return T1(temp);
-    }
-
-    template <typename T2>
-    T1          operator-(const T2& a) {
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] -= a;
         return T1(temp);
     }
 
@@ -101,6 +97,14 @@ struct VectorInterface : fluent::crtp<T1, VectorInterface>
             temp[i] -= a;
         return T1(temp);
     }
+
+    // template <typename T2>
+    // T1          operator-(const T2& a) {
+    //     auto temp = this->underlying().get();  // copy of the underlying vector
+    //     for (size_t i = 0; i < temp.size(); ++i)
+    //         temp[i] -= a;
+    //     return T1(temp);
+    // }
 
 };
 
@@ -148,11 +152,11 @@ using MultiFuncParams = fluent::NamedType<
     struct MultiFuncParamsTag,
     VectorInterface>;
 
-/// Bounds [lower, upper] confining the particle during propagation.
-using Walls = fluent::NamedType<
-    std::vector<double>,
-    struct WallsTag,
-    VectorInterface>;
+// /// Bounds [lower, upper] confining the particle during propagation.
+// using Walls = fluent::NamedType<
+//     std::vector<double>,
+//     struct WallsTag,
+//     VectorInterface>;
 
 
 /**
@@ -162,7 +166,7 @@ using Walls = fluent::NamedType<
  * Is Gaussian or Uniform distributed.
  */
 using PropFunc = fluent::NamedType<
-    std::function<PosVec (const PosVec&, std::default_random_engine&, double)>,
+    std::function<PosVec (const PosVec&, std::default_random_engine&, const Position&)>,
     struct PropFuncTag,
     fluent::Callable>;
 
