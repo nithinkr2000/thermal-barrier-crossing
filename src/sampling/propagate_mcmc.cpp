@@ -1,124 +1,170 @@
 #include "../../include/core/param_sets.hpp"
 #include "../../include/sampling/propagate_mcmc.hpp"
-#include "../landscape/potentials.cpp"
-#include "proposals.cpp"
+#include "../landscape/potentials.hpp"
+#include "../../include/sampling/proposals.hpp"
 #include <cassert>
 #include <string>
 #include <algorithm>
 
 
-
-void PropagateMCMC(std::vector<ReplicaInfo>& repInfo, 
-    Position& stepSize, 
-    long nSteps, 
-    std::default_random_engine& rGen, 
-    PotFunc potential,
-    PropFunc proposal)
+/**
+ * 
+ * 
+ *  MH criterion for MCMC simulators (not tempering)
+ */ 
+std::vector<bool> MetropolisHastingsAcceptance(const EVec& E1, 
+    const std::vector<ReplicaInfo>& repInfo, 
+    std::default_random_engine& rGen) 
 {
+	assert(E1.size() == repInfo.size());
+	std::uniform_real_distribution<double> uniDist(0, 1);
 
-    while(nSteps > 0)
-    {
-        // Proposing next position
-        PosVec x1{proposal(x0, rGen, stepSize)};
-        
-        // Calculate corresponding energy
-        EVec ENew{potential(repInfo)};
-        
-        
-        --nSteps;
-    };
-
-    // Pick a number from a uniform distribution in [0, 1] for the acceptance criterion
-    std::uniform_real_distribution<double> uni_dist(0.0, 1.0);
-	
-    // Initialize return vectors.
-    std::vector<double> positions{};
-    std::vector<double> energies{};
-    std::vector<double> temp;
-
-    for(long i = 0; i < n_steps; ++i)
-    {        
-        // Propose the next step       
-        temp = {x0, step_size};
-        double s1 = proposal(temp, gen);
-        
-        // Calculate energy
-        std::vector<double> Es{potential({x0, s1}, V_params)};
-
-        // Calculate Boltzmann weights for current and next states 
-        // respectively.  
-	    std::vector<double> probs = BoltzmannInversion({Es[1] - Es[0]}, beta);
-        double p_acc = std::min(1.0, probs[0]);
-        
-	    // Perform the Metropolis Monte Carlo step
-        double rand_val = uni_dist(gen);	
-        
-        if(rand_val < p_acc)
-            x0 = s1;
-        
-        positions.push_back(s0);    // Store current position        
-        energies.push_back(Es[0]);  // Store current energy
-
-        // Every 1000 steps, reseed the generator
-        if (i % 1000 == 0)
-        {
-            std::random_device r;
-            gen.seed(r());
-        }
-        
-    }
-
-    // Return tuple of positions and energies
-}
-
-
-
-std::vector<bool> MonteCarloAcceptance(const EVec& E1, 
-    const EVec& E2, 
-    Betas& invTemperature) 
-{
-	assert(E1.size() == E2.size());
-	
-    EVec betaEnergyDiff{E1 - E2};
+    EVec betaEnergyDiff{};
     std::vector<bool> mcmcAcceptance(E1.size(), false);
 
-	for (int i{}; i < E1.size(); ++i)
+	for (int repID{}; repID < E1.size(); ++repID)
 	{
-        betaEnergyDiff[i] *= -invTemperature[i];
-        mcmcAcceptance[i] = std::min(0.0, betaEnergyDiff[i]);
+        betaEnergyDiff.push_back(-repInfo[repID].betas.back() * (repInfo[repID].freeEnergy.back() - E1[repID]));
+        float accProb = std::min(1.0, std::exp(betaEnergyDiff.back()));
+        mcmcAcceptance[repID] = (accProb == 1.0) ? true : (uniDist(rGen) < accProb);
     }	
-
+        
 	return mcmcAcceptance;
 }
 
 
+/**   
+ * MH criterion for tempering algorithms
+ */
+std::vector<bool> BoltzmannInversion(const EVec& E, 
+	const Betas& invTemperature, 
+    std::default_random_engine& rGen) 
+{
+	std::uniform_real_distribution<double> uniDist(0, 1);
+
+    EVec betaEnergyDiff{};
+    std::vector<bool> mcmcAcceptance(E1.size(), false);
+
+	for (int repID{}; repID < E1.size(); ++repID)
+	{
+        betaEnergyDiff.push_back(-repInfo[repID].betas.back() * (repInfo[repID].freeEnergy.back() - E1[repID]));
+        float accProb = std::min(1.0, std::exp(betaEnergyDiff.back()));
+        mcmcAcceptance[repID] = (accProb == 1.0) ? true : (uniDist(rGen) < accProb);
+    }	
+        
+	return mcmcAcceptance;
+}
 
 
-void ReplicaExchangeMain(std::vector<RepInfo>& init_reps,
+void PropagateMCMC(std::vector<ReplicaInfo>& repInfo, 
+    const Position& stepSize, 
+    long nSteps, 
+    std::default_random_engine& rGen, 
+    const PotFunc& potential,
+    const PropFunc& proposal)
+{  
+
+    std::uniform_real_distribution<double> uni_dist(0.0, 1.0);
+    PosVec x1{};
+
+    for (auto& repi: repInfo)
+        x1.push_back(repi.x0);
+
+    while(nSteps > 0)
+    {
+        // Proposing next position
+        x1 = proposal(x1, rGen, stepSize);
+        
+        // Calculate corresponding energy
+        EVec ENew{potential(x1, repInfo)};
+        
+        std::vector<bool> mcmcAcceptance{MetropolisHastingsAcceptance(ENew, repInfo, rGen)};
+        
+        for (size_t repIdx{}; repIdx < mcmcAcceptance.size(); ++repIdx)
+        {
+            bool accepted = mcmcAcceptance[repIdx];
+            
+            auto& rep = repInfo[repIdx];
+
+            rep.positions.push_back(accepted ? x1[repIdx] : rep.positions.back());
+
+            if (accepted) 
+                rep.x0 = rep.positions.back();
+
+            rep.betas.push_back(rep.betas.back());
+            rep.repids.push_back(rep.repids.back());
+            
+            rep.freeEnergy.push_back(accepted ? ENew[repIdx] : rep.freeEnergy.back());
+        }
+        
+        --nSteps;
+    };
+}
+
+
+
+void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
+    const Position& stepSize,
+    const int& exIdx,
+    std::default_random_engine& rGen, 
+    const PotFunc& potential)
+{
+    bool exAcceptance = true;
+    std::vector<size_t> swapIdcs;
+    std::vector<size_t> repIdcs;
+    
+    for (size_t repIdx{exIdx % 2}; repIdx < repInfo.size() - 1; repIdx += 2)
+    {
+        repIdcs.push_back(repIdx);
+        swapIdcs.push_back(repIdx + 1);
+    }
+
+    // Handle wrap-around (exchange first and last replica) for odd exchange indices
+    if (exIdx % 2 == 1)
+    {
+        repIdcs.push_back(repInfo.size() - 1);
+        swapIdcs.push_back(0);
+    }  
+
+    for (size_t pairIdx{}; pairIdx < repIdcs.size(); ++pairIdx)
+    {
+        ReplicaInfo cuRep = repInfo[repIdcs[pairIdx]];
+        ReplicaInfo exRep = repInfo[swapIdcs[pairIdx]];
+
+        // Determine beta * energy differences for pair to be exchanged
+        // E1 * beta1, E2 * beta2, E1 * beta2, E2 * beta1
+        
+        EVec bE = BoltzmannInversion(EVec(std::vector<double>{cuRep.freeEnergy.back(), 
+                                                                    exRep.freeEnergy.back(), 
+                                                                    cuRep.freeEnergy.back(), 
+                                                                    exRep.freeEnergy.back()}), 
+                                    Betas(std::vector<double>{cuRep.betas.back(), 
+                                                                    exRep.betas.back(), 
+                                                                    exRep.betas.back(), 
+                                                                    cuRep.betas.back()}));
+        
+        /**
+        * To avoid errors from finite precision, instead of min(1, exp(-delBeta * delE))
+        * min(0, -delBeta * delE) is determined. 
+        */
+        
+        float logProb {std::min(0.0, -(bE[0] - bE[2]) - (bE[1] - bE[3]))};
+        // Generate random number, check probability accept 
+        // bool accProb = (logProb > 0.0) ? 1.0: (std::exp(accProb));
+
+        if (true)                                       
+            std::cout << "Yasss";
+    }                                                            
+};
+
+void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
                          double step_size, 
                          long n_steps, 
                          long n_ex, 
-                         PotentialFunc potential,
-                         ProposalFunc proposal)
+                         const PotFunc& potential,
+                         const PropFunc& proposal)
 {
-    /**
-     * @brief   Function to propagate the replica exchange simulation.
-     *          Perform MCMC simulations, exchanges at predetermined
-     *          intervals and updates positions, energies and temperatures
-     *          accordingly.
-     * 
-     * @param   init_reps   -  The set of replicas for which simulations are 
-     *                         to be performed. Contains instances of RepInfo
-     *                         which contains positions, energies, temperatures,
-     *                         starting structures and potential energy parameters.
-     * @param   stepsize    -  The step size for the MCMC simulation.
-     * @param   n_steps     -  Number of steps performed between each exchange attempt.
-     * @param   n_ex        -  The number of exchanges performed in total.
-     * @param   potential   -  The potential energy function.
-     * @param   proposal    -  The proposal function for the next step.
-     * 
-     * Modifies init_reps by reference.
-     */
+    
     // Initialize random number generator
     std::random_device r;
     std::default_random_engine gen(r());

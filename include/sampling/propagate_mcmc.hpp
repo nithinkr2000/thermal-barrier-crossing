@@ -9,22 +9,22 @@
 #include <random>
 
 void PropagateMCMC( std::vector<ReplicaInfo>& repInfo,
-    std::vector<MultiFuncParams> allRepParams,
-    Position& stepSize,
-    long nSteps,
-    std::default_random_engine& gen, 
-    PotFunc potential, 
-    PropFunc proposal);
+    Position& stepSize, 
+    long nSteps, 
+    std::default_random_engine& rGen, 
+    const PotFunc& potential,
+    const PropFunc& proposal);
 
     
-std::vector<bool> MonteCarloAcceptance(const EVec& E1, const EVec& E2, Betas& invTemperature);                                              
+std::vector<bool> MetropolisHastingsAcceptance(const EVec& E1, 
+    const std::vector<ReplicaInfo>& repInfo,
+    std::default_random_engine& rGen); 
 
-void ReplicaExchangeMain(std::vector<ReplicaInfo>& init_reps,
-                         double step_size, 
-                         long n_steps, 
-                         long n_ex, 
-                         PotFunc potential,
-                         PropFunc proposal);
+void ParallelTempering(std::vector<ReplicaInfo>& repInfo,
+    const Position& stepSize,
+    int& exIdx,
+    std::default_random_engine& rGen, 
+    const PotFunc& potential);
 
 
 #endif
