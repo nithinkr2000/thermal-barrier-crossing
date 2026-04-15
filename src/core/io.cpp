@@ -1,7 +1,7 @@
 #include "../../include/core/io.hpp"
 
 
-StateVec ParamSplitter(const std::string& s, char delimiter=',')
+StateVec ParamSplitter(const std::string& s, char delimiter)
 {
     /** 
     *

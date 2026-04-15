@@ -2,144 +2,139 @@
 
 /**
  * @file  base.hpp
- * @brief Core named types, function aliases, and the ReplicaInfo aggregate.
+ * @brief Core named types for strong typing
+ *        aliases for potential and proposal functions,
+ *        trajectory struct, replica data struct.
  *
  * Named types wrap raw containers and callables to prevent silent
  * argument-order errors in function signatures. Access the underlying
  * value with .get() at call sites.
  */
 
-#include <vector>
-#include <utility>
 #include <NamedType/named_type.hpp>
-#include "NamedType/named_type_impl.hpp"
-// AND specifically
-#include "NamedType/underlying_functionalities.hpp"
-#include <numbers>
+#include <cassert>
+#include <limits>
 #include <random>
-# include <cassert>
+#include <utility>
+#include <vector>
 
-// ---------------------------------------------------------------------------
-// Custom CRTP skill: exposes std::vector interface on named container types
-// ---------------------------------------------------------------------------
+/**
+ * ---------------------------------------------------------------------------
+ *  Custom CRTP skills: exposes std::vector interface on named container types.
+ *  ---------------------------------------------------------------------------
+ */
 
-template <typename T1>
-struct VectorInterface : fluent::crtp<T1, VectorInterface>
-{
-    auto   size ()  const { return this->underlying().get().size();  }
-    bool   empty()  const { return this->underlying().get().empty(); }
-    void   clear()        { this->underlying().get().clear();        }
+// VectorAccess allows for accessing elements of the vector
+// Enables ranged for loops
+template <typename T> struct VectorAccess : fluent::crtp<T, VectorAccess> {
 
-    template <typename U> 
-    void     push_back    (U&& v) { this->underlying().get().push_back(std::forward<U>(v)); }
-    
-    template <typename U> 
-    void     reserve      (U&& v) { this->underlying().get().reserve(v); }
+    auto size() const { return this->underlying().get().size(); }
+    bool empty() const { return this->underlying().get().empty(); }
 
-    auto begin()       { return this->underlying().get().begin(); }
-    auto end  ()       { return this->underlying().get().end();   }
-    auto begin() const { return this->underlying().get().begin(); }
-    auto end  () const { return this->underlying().get().end();   }
+    auto &operator[](size_t idx) { return this->underlying().get()[idx]; }
+    const auto &operator[](size_t idx) const { return this->underlying().get()[idx]; }
 
-    auto back()        { return this->underlying().get().back();  }
-    auto back()  const { return this->underlying().get().back();  }
+    auto &at(size_t idx) { return this->underlying().get().at(idx); }
+    const auto &at(size_t idx) const { return this->underlying().get().at(idx); }
 
-    // Fixed: was calling this->underlying().at(index), missing .get()
-    auto&       operator[](size_t i)       { return this->underlying().get()[i];    }
-    const auto& operator[](size_t i) const { return this->underlying().get()[i];    }
-    auto&       at(size_t i)               { return this->underlying().get().at(i); }
-    const auto& at(size_t i)         const { return this->underlying().get().at(i); }
+    auto &front() { return this->underlying().get().front(); }
+    const auto &front() const { return this->underlying().get().front(); }
 
-    // T1          operator+(const T1& a)     {
-    //     assert(this->underlying().get().size() == a.size());
-    //     auto temp = this->underlying().get();  // copy of the underlying vector
-    //     for (size_t i = 0; i < temp.size(); ++i)
-    //         temp[i] += a[i];
-    //     return T1(temp);
-    // }
+    auto &back() { return this->underlying().get().back(); }
+    const auto &back() const { return this->underlying().get().back(); }
 
-    T1          operator+(const T1& a) const {
-        assert(this->underlying().get().size() == a.size());
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] += a[i];
-        return T1(temp);
-    }
+    auto begin() { return this->underlying().get().begin(); }
+    auto end() { return this->underlying().get().end(); }
 
-    // T1          operator-(const T1& a) {
-    //     assert(this->underlying().get().size() == a.size());
-    //     auto temp = this->underlying().get();  // copy of the underlying vector
-    //     for (size_t i = 0; i < temp.size(); ++i)
-    //         temp[i] -= a[i];
-    //     return T1(temp);
-    // }
-
-    T1          operator-(const T1& a) const {
-        assert(this->underlying().get().size() == a.size());
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] -= a[i];
-        return T1(temp);
-    }
-
-    template <typename T2>
-    T1          operator+(const T2& a) const {
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] += a;
-        return T1(temp);
-    }
-
-    template <typename T2>
-    T1          operator-(const T2& a) const {
-        auto temp = this->underlying().get();  // copy of the underlying vector
-        for (size_t i = 0; i < temp.size(); ++i)
-            temp[i] -= a;
-        return T1(temp);
-    }
-
-    // template <typename T2>
-    // T1          operator-(const T2& a) {
-    //     auto temp = this->underlying().get();  // copy of the underlying vector
-    //     for (size_t i = 0; i < temp.size(); ++i)
-    //         temp[i] -= a;
-    //     return T1(temp);
-    // }
-
+    auto begin() const { return this->underlying().get().cbegin(); }
+    auto end() const { return this->underlying().get().cend(); }
 };
 
+// VectorMutate allows for modification of vectors
+template <typename T> struct VectorMutate : fluent::crtp<T, VectorMutate> {
+
+    void clear() { this->underlying().get().clear(); }
+
+    template <typename U> void push_back(U &&v) { this->underlying().get().push_back(std::forward<U>(v)); }
+};
+
+// VectorMath allows for element-wise and broad-casted arithmetic
+// for 1D vectors
+template <typename T> struct VectorMath : fluent::crtp<T, VectorMath> {
+
+    // operator+ allows for element-wise addition of 1D vectors
+    T operator+(const T &that) const {
+
+        const auto &a = this->underlying().get();
+        const auto &b = that.get();
+
+        assert(a.size() == b.size());
+
+        auto result = a;
+        for (size_t idx{0}; idx <= a.size(); ++idx)
+            result[idx] += b[idx];
+
+        return T(result);
+    }
+
+    // operat- allows for element-wise subtraction of 1D vectors
+    T operator-(const T &that) const {
+
+        const auto &a = this->underliying().get();
+        const auto &b = that.get();
+
+        assert(a.size() == b.size());
+
+        auto result = a;
+
+        for (size_t idx{0}; idx <= b.size(); ++idx)
+            result[idx] -= b[idx];
+
+        return T(result);
+    }
+
+    // operator* allows for scalar multiplication of a double and 1D vectors
+    template <typename U> T operator*(U scalar) const {
+        // Assert that nothing nonsensical is passed, like a string
+        static_assert(std::is_arithmetic_v<U>, "Scalar must be a numeric type");
+        auto result = this->underlying().get();
+
+        for (auto &x : result)
+            x *= scalar;
+
+        return T(result);
+    }
+
+    // operator* allows for element-wise multiplication of 1D vectors
+    T operator*(const T &that) const {
+
+        const auto &a = this->underlying().get();
+        const auto &b = that.get();
+
+        assert(a.size() == b.size());
+        auto result = a;
+
+        for (size_t idx{0}; idx <= b.size(); ++idx)
+            result[idx] *= b[idx];
+
+        return T(result);
+    }
+};
 
 // Single point in d-dimensional space
-using Position = fluent::NamedType<
-    std::vector<double>,
-    struct PosTag,
-    VectorInterface
-    >;
+using Position = fluent::NamedType<std::vector<double>, struct PosTag, VectorAccess, VectorMutate, VectorMath>;
 
+// Ordered sequence of N-D particle positions.
+using PosVec = fluent::NamedType<std::vector<Position>, struct PosVecTag, VectorAccess, VectorMutate>;
 
-/// Ordered sequence of N-D particle positions.
-using PosVec = fluent::NamedType<
-    std::vector<Position>, 
-    struct PosVecTag, 
-    VectorInterface>;
+// Ordered sequence of potential energy values, parallel to a PosVec.
+using EVec = fluent::NamedType<std::vector<double>, struct EVecTag, VectorAccess, VectorMutate, VectorMath>;
 
-/// Ordered sequence of potential energy values, parallel to a PosVec.
-using EVec = fluent::NamedType<
-    std::vector<double>,
-    struct EVecTag,
-    VectorInterface>;
+// Per-replica inverse temperatures (β = 1/kT), one entry per exchange step.
+using Betas = fluent::NamedType<std::vector<double>, struct BetasTag, VectorAccess, VectorMutate>;
 
-/// Per-replica inverse temperatures (β = 1/kT), one entry per exchange step.
-using Betas = fluent::NamedType<
-    std::vector<double>,
-    struct BetasTag,
-    VectorInterface>;
-
-/// Per-replica potential-parameter index, one entry per exchange step.
-using RepIdcs = fluent::NamedType<
-    std::vector<int>,
-    struct RepIdcsTag,
-    VectorInterface>;
+// Per-replica potential-parameter index, one entry per exchange step.
+using RepIdcs = fluent::NamedType<std::vector<int>, struct RepIdcsTag, VectorAccess, VectorMutate>;
 
 /**
  * Parameters for a potential that is a sum of kernels.
@@ -147,10 +142,7 @@ using RepIdcs = fluent::NamedType<
  * E.g. for a sum of Gaussians: params[i] = {amplitudes, means, stddevs}.
  */
 
-using MultiFuncParams = fluent::NamedType<
-    std::vector<std::vector<double>>,
-    struct MultiFuncParamsTag,
-    VectorInterface>;
+using MultiFuncParams = fluent::NamedType<std::vector<std::vector<double>>, struct MultiFuncParamsTag, VectorAccess>;
 
 // /// Bounds [lower, upper] confining the particle during propagation.
 // using Walls = fluent::NamedType<
@@ -158,24 +150,18 @@ using MultiFuncParams = fluent::NamedType<
 //     struct WallsTag,
 //     VectorInterface>;
 
-
 /**
  * Proposal function.
  * Given the current position and step size packed in a PosVec,
  * returns the proposed next position as a scalar.
  * Is Gaussian or Uniform distributed.
  */
-using PropFunc = fluent::NamedType<
-    std::function<PosVec (const PosVec&, std::default_random_engine&, const Position&)>,
-    struct PropFuncTag,
-    fluent::Callable>;
-
+using PropFunc =
+    fluent::NamedType<std::function<PosVec(const PosVec &, std::default_random_engine &, const Position &)>,
+                      struct PropFuncTag, fluent::Callable>;
 
 /// Walls for all dimensions of the vector space
-using Walls = fluent::NamedType<
-    std::vector<std::pair<double, double>>, 
-    struct WallsTag,
-    VectorInterface>;
+using Walls = fluent::NamedType<std::vector<std::pair<double, double>>, struct WallsTag, VectorAccess>;
 
 /**
  * @brief All mutable state belonging to a single replica.
@@ -184,19 +170,16 @@ using Walls = fluent::NamedType<
  * recording which inverse temperature and parameter set this replica
  * carried at each point in the trajectory.
  */
-struct ReplicaInfo
-{
-    Position        x0{};             ///< Current (and initial) position.
-    Betas           betas{};          ///< Inverse-temperature history.
-    RepIdcs         repids{};         ///< Parameter-set index history.
-    MultiFuncParams vParams{};        ///< Current potential parameters.
-    PosVec          positions{};      ///< Full position trajectory.
-    EVec            freeEnergy{};     ///< Energy at each visited position.
-    Walls           walls{            ///< Hard reflective boundaries [lo, hi].
-        std::vector<std::pair<double, double>>{{
-                std::numeric_limits<double>::lowest(), 
-                std::numeric_limits<double>::max()
-            }}};
+struct ReplicaInfo {
+    Position x0{};             ///< Current (and initial) position.
+    Betas betas{};             ///< Inverse-temperature history.
+    RepIdcs repids{};          ///< Parameter-set index history.
+    MultiFuncParams vParams{}; ///< Current potential parameters.
+    PosVec positions{};        ///< Full position trajectory.
+    EVec freeEnergy{};         ///< Energy at each visited position.
+    Walls walls{               ///< Hard reflective boundaries [lo, hi].
+                std::vector<std::pair<double, double>>{
+                    {std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max()}}};
 };
 
 /**
@@ -204,7 +187,5 @@ struct ReplicaInfo
  * Maps a vector of positions and a set of kernel parameters to an
  * energy value.
  */
-using PotFunc = fluent::NamedType<
-    std::function<EVec (const PosVec&, const std::vector<ReplicaInfo>&)>,
-    struct PotFuncTag,
-    fluent::Callable>;
+using PotFunc = fluent::NamedType<std::function<EVec(const PosVec &, const std::vector<ReplicaInfo> &)>,
+                                  struct PotFuncTag, fluent::Callable>;
