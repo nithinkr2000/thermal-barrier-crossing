@@ -122,13 +122,13 @@ template <typename T> struct VectorMath : fluent::crtp<T, VectorMath> {
 };
 
 // Single point in d-dimensional space
-using Position = fluent::NamedType<std::vector<double>, struct PosTag, VectorAccess, VectorMutate, VectorMath>;
+using Config = fluent::NamedType<std::vector<double>, struct ConfigTag, VectorAccess, VectorMutate, VectorMath>;
 
-// Ordered sequence of N-D particle positions.
-using PosVec = fluent::NamedType<std::vector<Position>, struct PosVecTag, VectorAccess, VectorMutate>;
+// Set of N-D particle positions.
+using Ensemble = fluent::NamedType<std::vector<Config>, struct EnsTag, VectorAccess, VectorMutate>;
 
-// Ordered sequence of potential energy values, parallel to a PosVec.
-using EVec = fluent::NamedType<std::vector<double>, struct EVecTag, VectorAccess, VectorMutate, VectorMath>;
+// Ordered sequence of potential energy values, parallel to a ConfigEnsemble.
+using ConfigEnergy = fluent::NamedType<std::vector<double>, struct EnergyTag, VectorAccess, VectorMutate, VectorMath>;
 
 // Per-replica inverse temperatures (β = 1/kT), one entry per exchange step.
 using Betas = fluent::NamedType<std::vector<double>, struct BetasTag, VectorAccess, VectorMutate>;
@@ -138,17 +138,11 @@ using RepIdcs = fluent::NamedType<std::vector<int>, struct RepIdcsTag, VectorAcc
 
 /**
  * Parameters for a potential that is a sum of kernels.
- * Outer index: kernel index. Inner index: parameter index within that kernel.
+ * Outer index: kernel index.
+ * Inner index: parameter index within that kernel.
  * E.g. for a sum of Gaussians: params[i] = {amplitudes, means, stddevs}.
- */
-
-using MultiFuncParams = fluent::NamedType<std::vector<std::vector<double>>, struct MultiFuncParamsTag, VectorAccess>;
-
-// /// Bounds [lower, upper] confining the particle during propagation.
-// using Walls = fluent::NamedType<
-//     std::vector<double>,
-//     struct WallsTag,
-//     VectorInterface>;
+ **/
+using VParams = fluent::NamedType<std::vector<std::vector<double>>, struct VParamsTag, VectorAccess>;
 
 /**
  * Proposal function.
@@ -156,11 +150,11 @@ using MultiFuncParams = fluent::NamedType<std::vector<std::vector<double>>, stru
  * returns the proposed next position as a scalar.
  * Is Gaussian or Uniform distributed.
  */
-using PropFunc =
-    fluent::NamedType<std::function<PosVec(const PosVec &, std::default_random_engine &, const Position &)>,
-                      struct PropFuncTag, fluent::Callable>;
+using Proposal =
+    fluent::NamedType<std::function<Ensemble(const Ensemble &, std::default_random_engine &, const Config &)>,
+                      struct ProposalTag, fluent::Callable>;
 
-/// Walls for all dimensions of the vector space
+// Bounds [lower, upper] confining the particle during propagation.
 using Walls = fluent::NamedType<std::vector<std::pair<double, double>>, struct WallsTag, VectorAccess>;
 
 /**
@@ -170,16 +164,23 @@ using Walls = fluent::NamedType<std::vector<std::pair<double, double>>, struct W
  * recording which inverse temperature and parameter set this replica
  * carried at each point in the trajectory.
  */
+struct ReplicaState {
+    Betas betas;
+    RepIdcs repIdcs;
+    VParams potParams;
+};
+
+struct WalkerConfig {
+    Config positions;
+    ConfigEnergy energies;
+};
+
 struct ReplicaInfo {
-    Position x0{};             ///< Current (and initial) position.
-    Betas betas{};             ///< Inverse-temperature history.
-    RepIdcs repids{};          ///< Parameter-set index history.
-    MultiFuncParams vParams{}; ///< Current potential parameters.
-    PosVec positions{};        ///< Full position trajectory.
-    EVec freeEnergy{};         ///< Energy at each visited position.
-    Walls walls{               ///< Hard reflective boundaries [lo, hi].
-                std::vector<std::pair<double, double>>{
-                    {std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max()}}};
+    Config x0{};
+    ReplicaState state;
+    WalkerConfig config;
+    Walls walls{std::vector<std::pair<double, double>>{
+        {std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max()}}};
 };
 
 /**
@@ -187,5 +188,5 @@ struct ReplicaInfo {
  * Maps a vector of positions and a set of kernel parameters to an
  * energy value.
  */
-using PotFunc = fluent::NamedType<std::function<EVec(const PosVec &, const std::vector<ReplicaInfo> &)>,
-                                  struct PotFuncTag, fluent::Callable>;
+using Potential = fluent::NamedType<std::function<ConfigEnergy(const Ensemble &, const std::vector<ReplicaInfo> &)>,
+                                    struct PotFuncTag, fluent::Callable>;
