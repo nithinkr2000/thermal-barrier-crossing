@@ -71,7 +71,7 @@ template <typename T> struct VectorMath : fluent::crtp<T, VectorMath> {
         assert(a.size() == b.size());
 
         auto result = a;
-        for (size_t idx{0}; idx <= a.size(); ++idx)
+        for (size_t idx{0}; idx < a.size(); ++idx)
             result[idx] += b[idx];
 
         return T(result);
@@ -80,23 +80,23 @@ template <typename T> struct VectorMath : fluent::crtp<T, VectorMath> {
     // operat- allows for element-wise subtraction of 1D vectors
     T operator-(const T &that) const {
 
-        const auto &a = this->underliying().get();
+        const auto &a = this->underlying().get();
         const auto &b = that.get();
 
         assert(a.size() == b.size());
 
         auto result = a;
 
-        for (size_t idx{0}; idx <= b.size(); ++idx)
+        for (size_t idx{0}; idx < b.size(); ++idx)
             result[idx] -= b[idx];
 
         return T(result);
     }
 
     // operator* allows for scalar multiplication of a double and 1D vectors
-    template <typename U> T operator*(U scalar) const {
-        // Assert that nothing nonsensical is passed, like a string
-        static_assert(std::is_arithmetic_v<U>, "Scalar must be a numeric type");
+    template <typename U>
+        requires std::is_arithmetic_v<U>
+    T operator*(U scalar) const {
         auto result = this->underlying().get();
 
         for (auto &x : result)
@@ -114,7 +114,7 @@ template <typename T> struct VectorMath : fluent::crtp<T, VectorMath> {
         assert(a.size() == b.size());
         auto result = a;
 
-        for (size_t idx{0}; idx <= b.size(); ++idx)
+        for (size_t idx{0}; idx < b.size(); ++idx)
             result[idx] *= b[idx];
 
         return T(result);

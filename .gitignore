@@ -41,5 +41,5 @@
 *.dwo
 
 # Notes
-notes.txt
+notes.md
 build/

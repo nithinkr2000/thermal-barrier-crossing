@@ -3,6 +3,6 @@
 
 #include "../core/base.hpp"
 
-PotFunc PotentialGaussianBasis;
+Potential GaussianBasis;
 
 #endif
