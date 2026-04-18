@@ -2,9 +2,7 @@
 
 /**
  * @file  base.hpp
- * @brief Core named types for strong typing
- *        aliases for potential and proposal functions,
- *        trajectory struct, replica data struct.
+ * @brief Core named types for strong typing.
  *
  * Named types wrap raw containers and callables to prevent silent
  * argument-order errors in function signatures. Access the underlying
@@ -12,16 +10,17 @@
  */
 
 #include <NamedType/named_type.hpp>
+#include <NamedType/underlying_functionalities.hpp>
 #include <cassert>
-#include <limits>
-#include <random>
+// #include<limits>
+// #include<random>
 #include <utility>
 #include <vector>
 
 /**
- * ---------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------
  *  Custom CRTP skills: exposes std::vector interface on named container types.
- *  ---------------------------------------------------------------------------
+ * ----------------------------------------------------------------------------
  */
 
 // VectorAccess allows for accessing elements of the vector
@@ -121,72 +120,33 @@ template <typename T> struct VectorMath : fluent::crtp<T, VectorMath> {
     }
 };
 
+// Scalar types for energy and beta, but using struct because NamedTypes feel like overkill
+struct Energy {
+    double e;
+};
+
+struct Beta {
+    double b;
+};
+
 // Single point in d-dimensional space
 using Config = fluent::NamedType<std::vector<double>, struct ConfigTag, VectorAccess, VectorMutate, VectorMath>;
 
 // Set of N-D particle positions.
-using Ensemble = fluent::NamedType<std::vector<Config>, struct EnsTag, VectorAccess, VectorMutate>;
+using ConfigEnsemble = fluent::NamedType<std::vector<Config>, struct ConfigEnsTag, VectorAccess, VectorMutate>;
 
-// Ordered sequence of potential energy values, parallel to a ConfigEnsemble.
-using ConfigEnergy = fluent::NamedType<std::vector<double>, struct EnergyTag, VectorAccess, VectorMutate, VectorMath>;
+// Per-replica potential energy values, parallel to a ConfigEnsemble.
+using EnergyEnsemble =
+    fluent::NamedType<std::vector<Energy>, struct EnergiesTag, VectorAccess, VectorMutate, VectorMath>;
 
-// Per-replica inverse temperatures (β = 1/kT), one entry per exchange step.
-using Betas = fluent::NamedType<std::vector<double>, struct BetasTag, VectorAccess, VectorMutate>;
+// Per-replica inverse temperatures (β = 1/kT), parallel to ConfigEnsemble.
+using BetaEnsemble = fluent::NamedType<std::vector<Beta>, struct BetasTag, VectorAccess, VectorMutate>;
 
-// Per-replica potential-parameter index, one entry per exchange step.
-using RepIdcs = fluent::NamedType<std::vector<int>, struct RepIdcsTag, VectorAccess, VectorMutate>;
-
-/**
- * Parameters for a potential that is a sum of kernels.
- * Outer index: kernel index.
- * Inner index: parameter index within that kernel.
- * E.g. for a sum of Gaussians: params[i] = {amplitudes, means, stddevs}.
- **/
-using VParams = fluent::NamedType<std::vector<std::vector<double>>, struct VParamsTag, VectorAccess>;
-
-/**
- * Proposal function.
- * Given the current position and step size packed in a PosVec,
- * returns the proposed next position as a scalar.
- * Is Gaussian or Uniform distributed.
- */
-using Proposal =
-    fluent::NamedType<std::function<Ensemble(const Ensemble &, std::default_random_engine &, const Config &)>,
-                      struct ProposalTag, fluent::Callable>;
+// Per-replica Hamiltonian index, parallel to ConfigEnsemble.
+using ReplicaIndices = fluent::NamedType<std::vector<int>, struct RepIdcsTag, VectorAccess, VectorMutate>;
 
 // Bounds [lower, upper] confining the particle during propagation.
-using Walls = fluent::NamedType<std::vector<std::pair<double, double>>, struct WallsTag, VectorAccess>;
+using Walls = fluent::NamedType<std::vector<std::pair<Config, Config>>, struct WallsTag, VectorAccess>;
 
-/**
- * @brief All mutable state belonging to a single replica.
- *
- * `betas` and `repids` grow by one entry after each exchange attempt,
- * recording which inverse temperature and parameter set this replica
- * carried at each point in the trajectory.
- */
-struct ReplicaState {
-    Betas betas;
-    RepIdcs repIdcs;
-    VParams potParams;
-};
-
-struct WalkerConfig {
-    Config positions;
-    ConfigEnergy energies;
-};
-
-struct ReplicaInfo {
-    Config x0{};
-    ReplicaState state;
-    WalkerConfig config;
-    Walls walls{std::vector<std::pair<double, double>>{
-        {std::numeric_limits<double>::lowest(), std::numeric_limits<double>::max()}}};
-};
-
-/**
- * Potential energy function (surface).
- * Maps a vector of positions and a set of kernel parameters to an
- * energy value.
- */
-using Potential = fluent::NamedType<std::function<ConfigEnergy(const Ensemble &, const std::vector<ReplicaInfo> &)>,
-                                    struct PotFuncTag, fluent::Callable>;
+// For covariance matrix and other cases
+using Matrix = std::vector<std::vector<double>>;
