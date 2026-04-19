@@ -1,3 +1,4 @@
+#include <cmath>
 #include <stdexcept>
 #include <type_traits>
 
@@ -68,6 +69,33 @@ template <VectorLike V> V operator/(const V &v1, const V &v2) {
 
     for (size_t idx{0}; idx < res.size(); ++idx)
         res[idx] = res[idx] / v2[idx];
+
+    return res;
+}
+
+template <VectorLike V> V exp(const V &v) {
+    V res{v};
+
+    for (size_t idx{0}; idx < v.size(); ++idx)
+        res[idx] = std::exp(v[idx]);
+
+    return res;
+}
+
+template <VectorLike V> V sqrt(const V &v) {
+    V res{v};
+
+    for (size_t idx{0}; idx < v.size(); ++idx)
+        res[idx] = std::sqrt(v[idx]);
+
+    return res;
+}
+
+template <VectorLike V> V log(const V &v) {
+    V res{v};
+
+    for (size_t idx{0}; idx < v.size(); ++idx)
+        res[idx] = std::log(v[idx]);
 
     return res;
 }
