@@ -1,10 +1,14 @@
 #include <stdexcept>
+#include <type_traits>
 
 namespace mcmc::base_types {
 
 template <typename V>
 concept VectorLike = requires(V v, size_t i) {
-    v.size();
+    // Gippidy suggested using convertible_to to prevent misuse
+    // Like if I try to setup a function that calculates size() for matrices.
+    // That would fail in the operator overloads unless I do this.
+    { v.size() } -> std::convertible_to<size_t>;
     v[i];
 };
 
@@ -13,7 +17,7 @@ template <VectorLike V> V operator+(const V &v1, const V &v2) {
     // Overload for element-wise addition of n-D vectors.
 
     if (v1.size() != v2.size())
-        throw std::runtime_error("Size mismatch between v1 and v2.");
+        throw std::invalid_argument("Size mismatch between v1 and v2.");
 
     V res{v1};
 
@@ -25,10 +29,10 @@ template <VectorLike V> V operator+(const V &v1, const V &v2) {
 
 template <VectorLike V> V operator-(const V &v1, const V &v2) {
 
-    // Overload for element-wise multiplication of n-D vectors.
+    // Overload for element-wise subtraction of n-D vectors.
 
     if (v1.size() != v2.size())
-        throw std::runtime_error("Size mismatch between v1 and v2.");
+        throw std::invalid_argument("Size mismatch between v1 and v2.");
 
     V res{v1};
 
@@ -43,7 +47,7 @@ template <VectorLike V> V operator*(const V &v1, const V &v2) {
     // Overload for element-wise multiplication of n-D vectors.
 
     if (v1.size() != v2.size())
-        throw std::runtime_error("Size mismatch between v1 and v2.");
+        throw std::invalid_argument("Size mismatch between v1 and v2.");
 
     V res{v1};
 
@@ -55,10 +59,10 @@ template <VectorLike V> V operator*(const V &v1, const V &v2) {
 
 template <VectorLike V> V operator/(const V &v1, const V &v2) {
 
-    // Overload for element-wise multiplication of n-D vectors.
+    // Overload for element-wise division of n-D vectors.
 
     if (v1.size() != v2.size())
-        throw std::runtime_error("Size mismatch between v1 and v2.");
+        throw std::invalid_argument("Size mismatch between v1 and v2.");
 
     V res{v1};
 
@@ -71,6 +75,10 @@ template <VectorLike V> V operator/(const V &v1, const V &v2) {
 template <VectorLike V, typename S>
     requires std::is_arithmetic_v<S>
 V operator*(const V &v, const S &s) {
+
+    // Overload for element-wise scaling of vectors.
+
+    V res{v};
 
     for (size_t idx{0}; idx < v.size(); ++idx)
         v[idx] = v[idx] * s;
