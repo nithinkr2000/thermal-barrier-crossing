@@ -1,7 +1,7 @@
 #ifndef MCMC_HELPER_FUNCS_CPP
 #define MCMC_HELPER_FUNCS_CPP
 
-#include "../../include/utils/helper_funcs.hpp"
+#include "../../include/utils/general_helpers.hpp"
 #include <cmath>
 #include <stdexcept>
 
