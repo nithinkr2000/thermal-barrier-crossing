@@ -9,15 +9,6 @@ struct KernelParams {
     virtual double evaluate(const mcmc::base_types::Config &) const = 0;
 };
 
-// using ComponentParams = std::vector<std::vector<double>>; // Rename type to improve readability
-/**
- * Parameters for a potential that is a sum of kernels.
- * Outer index: kernel index.
- * Inner index: parameter index within that kernel.
- * E.g. for a sum of Gaussians: params[i] = {amplitudes, means, stddevs}.
- **/
-// using VParams = fluent::NamedType<std::vector<std::vector<double>>, struct VParamsTag, VectorAccess>;
-
 /**
  * Proposal function.
  * Given the current position and step size packed in a PosVec,

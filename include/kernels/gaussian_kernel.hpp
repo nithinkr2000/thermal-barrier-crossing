@@ -2,7 +2,7 @@
 #include "../utils/math_helpers.hpp"
 #include "kernel_params.hpp"
 #include <cassert>
-
+namespace mcmc::kernel_params {
 struct GaussianKernel : KernelParams {
     double amplitude;
     mcmc::base_types::Config avg;
@@ -37,3 +37,4 @@ struct GaussianKernel : KernelParams {
         return e;
     }
 };
+} // namespace mcmc::kernel_params
