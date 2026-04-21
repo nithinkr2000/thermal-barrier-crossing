@@ -26,9 +26,9 @@ template <typename T> struct Matrix {
   public:
     Matrix(std::vector<std::vector<T>> matrix) : M{matrix} {};
 
-    std::vector<std::vector<T>> &getM() const { return M; }
-    std::vector<std::vector<T>> &getL() const { return L; }
-    std::vector<std::vector<T>> &getU() const { return U; }
+    std::vector<std::vector<T>> &getM() { return M; }
+    std::vector<std::vector<T>> &getL() { return L; }
+    std::vector<std::vector<T>> &getU() { return U; }
 
     void setM(std::vector<std::vector<T>> M1) { M = M1; }
     void setL(std::vector<std::vector<T>> M1) { L = M1; }
