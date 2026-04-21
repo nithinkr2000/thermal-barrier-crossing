@@ -2,12 +2,11 @@
 #define KERNEL_PARAMS_HPP
 
 #include "../core/base_types.hpp"
-#include <NamedType/named_type.hpp>
 
 // Abstract class for kernel functions used to construct potentials.
 struct KernelParams {
     virtual ~KernelParams() = default;
-    virtual double evaluate(const Config &) const = 0;
+    virtual double evaluate(const mcmc::base_types::Config &) const = 0;
 };
 
 // using ComponentParams = std::vector<std::vector<double>>; // Rename type to improve readability
